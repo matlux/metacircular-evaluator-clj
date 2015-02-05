@@ -31,7 +31,7 @@
 (defn error [& msg] (apply println msg))
 (defn last-exp? [exps] (= (count exps) 1))
 
-(def env
+(def ^:private env
   (read-string "{
 f (fn [a] (+ 1 a))
 g (fn [a b] (+ a b))
@@ -59,6 +59,7 @@ z 2
   (l-eval (read-string "((fn [x] (+ 2 x)) 3)") env)
   (l-eval 'f env)
   (l-eval '(f 2) env)
+  (l-eval '((fn [x] (+ 1 x)) 42) env)
   (l-eval '(g 3 2) env)
   (l-eval (read-string "(f 2)") env)
   (l-eval (read-string "(f 2)") env)
@@ -126,6 +127,8 @@ z 2
   (def exps '(x))
   (def exp 'x)
   (def exps '((+ 2 x)))
+  (eval-sequence '(+ 3 y) env)
+  (l-eval '(+ 3 y) env)
   )
 
 (defn list-of-values [exps env]
