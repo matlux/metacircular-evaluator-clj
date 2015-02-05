@@ -11,7 +11,11 @@
 (defn pair
   [xs ys]
   {:pre [(= (count xs) (count ys))]}
-  (map list xs ys))
+  (into {} (map vector xs ys)))
+
+(comment
+(into {}  (pair '(x y z) '(1 2 3)))
+  )
 
 (defn pair? [sx]
   (= (count sx) 2))
@@ -25,11 +29,12 @@
   (second (rest (rest x))))
 
 (defn error [& msg] (apply println msg))
+(defn last-exp? [exps] (= (count exps) 1))
 
 (def env
   (read-string "{
-f (fn [a b] (+ a b))
-g (fn [a b] (- a b))
+f (fn [a] (+ 1 a))
+g (fn [a b] (+ a b))
 x 1
 y 2
 z 2
@@ -44,16 +49,37 @@ z 2
 
   (def exp program2)
   (def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
+  (def exp '((procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) 1))
+  (def exp '+)
   (l-eval program env)
   (l-eval program1 env)
   (l-eval program2 env)
   (l-eval (read-string "(+ 2 y)") env)
   (l-eval (read-string "(+ (+ 2 y) 4)") env)
   (l-eval (read-string "((fn [x] (+ 2 x)) 3)") env)
+  (l-eval 'f env)
+  (l-eval '(f 2) env)
+  (l-eval '(g 3 2) env)
+  (l-eval (read-string "(f 2)") env)
+  (l-eval (read-string "(f 2)") env)
   (l-eval (read-string "(fn [x] (+ 2 x))") env)
   (l-eval '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) env)
   (operator program2)
   (operands program2)
+
+  (def exp '(f 2))
+  (def procedure (l-eval (operator exp) env))
+  (def args (list-of-values (operands exp) env))
+
+  (merge (pair '(x y z) '(1 2 3) ) {'a 7})
+
+  (def env '{z 2, y 2, g (fn [a b] (- a b)), f (fn [a b] (+ a b)), x 1})
+  (def exps '((+ 2 x)))
+
+  (l-eval '+ env)
+  (l-eval '(+ 2 x) env)
+  (def exp (first exps))
+  (l-eval (first exps) env)
   )
 
 
@@ -62,7 +88,7 @@ z 2
          begin? eval-sequence begin-actions cond? cond->if application? l-apply operator operands list-of-values error
          primitive-procedure? apply-primitive-procedure no-operands? first-operand rest-operands
          compound-procedure? eval-sequence procedure-parameters procedure-environment procedure-body
-         extend-environment)
+         extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?)
 
 (defn l-eval [exp env]
   (cond (self-evaluating? exp) exp
@@ -79,7 +105,7 @@ z 2
         ;;(eval-sequence (begin-actions exp) env)
         ;;(cond? exp) (l-eval (cond->if exp) env)
         (application? exp)
-        (l-apply (l-eval (operator exp) env)
+        (l-apply (l-eval (l-eval (operator exp) env) env)
                  (list-of-values (operands exp) env))
         :else
         (error "Unknown expression type -- EVAL" exp)))
@@ -95,11 +121,34 @@ z 2
           (procedure-environment procedure)))
         :else (error "Unknown procedure type -- APPLY" procedure)))
 
+(comment
+  (list-of-values '(2 x) env)
+  (def exps '(x))
+  (def exp 'x)
+  (def exps '((+ 2 x)))
+  )
+
 (defn list-of-values [exps env]
   (if (no-operands? exps)
       '()
       (cons (l-eval (first-operand exps) env)
             (list-of-values (rest-operands exps) env))))
+
+(defn extend-environment [procedure-parameters
+                          args
+                          procedure-environment]
+  (merge procedure-environment (pair procedure-parameters args )))
+
+
+(defn eval-if [exp env]
+  (if (true? (l-eval (if-predicate exp) env))
+      (l-eval (if-consequent exp) env)
+      (l-eval (if-alternative exp) env)))
+
+(defn eval-sequence [exps env]
+  (cond (last-exp? exps) (l-eval (first exps) env)
+        :else (do (l-eval (first exps) env)
+                  (eval-sequence (rest exps) env))))
 
 
 (defn primitive-procedure? [procedure]
@@ -120,7 +169,8 @@ z 2
 (defn self-evaluating? [exp]
   (cond (number? exp) true
         (string? exp) true
-        (= 'procedure exp) true
+        (= exp '+) true
+        (or (= 'procedure exp) (= 'procedure (and (seq? exp) (first exp)))) true
         :else false))
 
 (defn variable? [exp] (symbol? exp))
@@ -146,8 +196,9 @@ z 2
 (defn definition? [exp]
   (tagged-list? exp 'defn))
 
-(lambda? '(fn [x] (+ 2 x)))
-(tagged-list? '(fn [x] (+ 2 x)) 'fn)
+(comment
+  (lambda? '(fn [x] (+ 2 x)))
+  (tagged-list? '(fn [x] (+ 2 x)) 'fn))
 
 (defn lambda? [exp] (tagged-list? exp 'fn))
 (defn lambda-parameters [exp] (second exp))
