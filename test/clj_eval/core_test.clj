@@ -28,13 +28,21 @@ z 2
     (is (= (l-eval 'y env) 2))
     (is (= (drop-last (l-eval 'f env)) '(procedure [a] ((+ 1 a)))))))
 
+(deftest special-foms
+  (testing "Evaluation of variables should work"
+    (is (= (l-eval '(l-quote 5 6) env) '(5 6)))
+
+    ))
+
+
 (deftest expressions
   (testing "Evaluation of expressions should work"
     (is (= (l-eval '(+ 1 x) env) 2))
     (is (= (l-eval '(+ x y) env) 3))
     (is (= (l-eval '(+ (+ x y) 1) env) 4))
     (is (= (l-eval '(- (+ x y 3) 1) env) 5))
-    (is (= (l-eval '(+ (+ 2 3) 1) env) 6))))
+    (is (= (l-eval '(+ (+ 2 3) 1) env) 6))
+    (is (= (l-eval (list 'cons 1 (list 'l-quote 2 3)) env) '(1 2 3)))))
 
 (deftest lambdas
   (testing "Evaluation of anonymous functions should work"

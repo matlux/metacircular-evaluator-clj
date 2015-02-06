@@ -47,9 +47,7 @@
   (def exp '((procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) 1))
   (def exp '+)
   (def exp 'y)
-  (l-eval program env)
-  (l-eval program1 env)
-  (l-eval program2 env)
+  (l-eval exp env)
   (def exp '(+ 1 1))
   (def exp '(+ 1 y))
   (l-eval (read-string "(+ 2 y)") env)
@@ -76,6 +74,8 @@
   (def env '{z 2, y 2, g (fn [a b] (- a b)), f (fn [a b] (+ a b)), x 1})
   (def exps '((+ 2 x)))
 
+  (l-eval '(l-quote "a" "b") env)
+  (def exp '(l-quote "a" "b"))
   (l-eval exp env)
   (l-eval '+ env)
   (l-eval '(+ 2 x) env)
@@ -129,13 +129,19 @@
         :else (error "Unknown procedure type -- APPLY" procedure)))
 
 (comment
-  (list-of-values '(2 x) env)
+  (list-of-values '(2 (l-quote 2 3)) env)
   (def exps '(x))
   (def exp 'x)
   (def exps '((+ 2 x)))
   (eval-sequence '(+ 3 y) env)
   (l-eval '(+ 3 y) env)
+  (def exp '(cons 1 '(2 3)))
   )
+
+(defn text-of-quotation [txt]
+  (do (println txt) (rest txt)))
+
+(text-of-quotation '(l-quote 1 2))
 
 (defn list-of-values [exps env]
   (if (no-operands? exps)
@@ -205,7 +211,7 @@
       item)))
 
 (defn quoted? [exp]
-  (tagged-list? exp 'quote))
+  (tagged-list? exp 'l-quote))
 
 (defn tagged-list? [exp tag]
   (= (and (seq? exp) (first exp)) tag))
