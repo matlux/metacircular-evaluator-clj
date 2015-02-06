@@ -14,7 +14,7 @@
   (into {} (map vector xs ys)))
 
 (comment
-(into {}  (pair '(x y z) '(1 2 3)))
+  (pair '(x y z) '(1 2 3))
   )
 
 (defn pair? [sx]
@@ -31,14 +31,9 @@
 (defn error [& msg] (apply println msg))
 (defn last-exp? [exps] (= (count exps) 1))
 
-(def ^:private env
-  (read-string "{
-f (fn [a] (+ 1 a))
-g (fn [a b] (+ a b))
-x 1
-y 2
-z 2
-}"))
+
+
+
 
 (comment
  (def program (read-string "1"))
@@ -51,9 +46,12 @@ z 2
   (def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
   (def exp '((procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) 1))
   (def exp '+)
+  (def exp 'y)
   (l-eval program env)
   (l-eval program1 env)
   (l-eval program2 env)
+  (def exp '(+ 1 1))
+  (def exp '(+ 1 y))
   (l-eval (read-string "(+ 2 y)") env)
   (l-eval (read-string "(+ (+ 2 y) 4)") env)
   (l-eval (read-string "((fn [x] (+ 2 x)) 3)") env)
@@ -65,6 +63,7 @@ z 2
   (l-eval (read-string "(f 2)") env)
   (l-eval (read-string "(fn [x] (+ 2 x))") env)
   (l-eval '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) env)
+  (def procedure '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
   (operator program2)
   (operands program2)
 
@@ -77,6 +76,7 @@ z 2
   (def env '{z 2, y 2, g (fn [a b] (- a b)), f (fn [a b] (+ a b)), x 1})
   (def exps '((+ 2 x)))
 
+  (l-eval exp env)
   (l-eval '+ env)
   (l-eval '(+ 2 x) env)
   (def exp (first exps))
@@ -106,10 +106,16 @@ z 2
         ;;(eval-sequence (begin-actions exp) env)
         ;;(cond? exp) (l-eval (cond->if exp) env)
         (application? exp)
-        (l-apply (l-eval (l-eval (operator exp) env) env)
+        (l-apply (l-eval (operator exp) env)
                  (list-of-values (operands exp) env))
         :else
         (error "Unknown expression type -- EVAL" exp)))
+
+(comment
+
+  (def procedure (list 'primitive +))
+  (def args '(1 1))
+  )
 
 (defn l-apply [procedure args]
   (cond (primitive-procedure? procedure) (apply-primitive-procedure procedure args)
@@ -153,12 +159,24 @@ z 2
         :else (do (l-eval (first exps) env)
                   (eval-sequence (rest exps) env))))
 
+(defn primitive-implementation [proc] (second proc))
+(def primitive-procedures
+  {'+ +
+   '- -
+   'cons cons
+   })
+(defn primitive-procedure-names []
+  (keys primitive-procedures))
 
-(defn primitive-procedure? [procedure]
-  (true? (some #(= procedure %) '(+))))
+(defn primitive-procedure-objects []
+  (map (fn [proc] (list 'primitive (second proc))) primitive-procedures))
+
+(defn primitive-procedure? [proc]
+  (tagged-list? proc 'primitive))
 
 (defn apply-primitive-procedure [proc args]
-  (if (= proc '+) (apply + args)))
+  (apply
+   (primitive-implementation proc) args))
 
 (defn make-procedure [parameters body env]
   (list 'procedure parameters body env))
@@ -172,24 +190,31 @@ z 2
 (defn self-evaluating? [exp]
   (cond (number? exp) true
         (string? exp) true
-        (= exp '+) true
-        (or (= 'procedure exp) (= 'procedure (and (seq? exp) (first exp)))) true
+        (= 'procedure (and (seq? exp) (first exp))) true
         :else false))
+(comment
+(def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
+  )
 
 (defn variable? [exp] (symbol? exp))
 
 (defn lookup-var [var env]
   (let [item (env var)]
-    (if (nil? item)
-      (when (some #(= var %) '(+))
-        var)
+    (if (tagged-list? item 'fn)
+      (l-eval item env)
       item)))
 
 (defn quoted? [exp]
   (tagged-list? exp 'quote))
 
 (defn tagged-list? [exp tag]
-  (= (first exp) tag))
+  (= (and (seq? exp) (first exp)) tag))
+
+(comment (tagged-list? 'y 'fn)
+         ( lookup-var exp env)
+         (def var exp)
+         (def item 2)
+         (def exp 2))
 
 (defn assignment? [exp]
   (tagged-list? exp 'set!))
@@ -201,7 +226,11 @@ z 2
 
 (comment
   (lambda? '(fn [x] (+ 2 x)))
-  (tagged-list? '(fn [x] (+ 2 x)) 'fn))
+   (primitive-procedure-names)
+   (primitive-procedure-objects)
+   (primitive-implementation '(primitive sadfsafs) (1 2))
+   env
+  )
 
 (defn lambda? [exp] (tagged-list? exp 'fn))
 (defn lambda-parameters [exp] (second exp))
@@ -213,9 +242,18 @@ z 2
 (defn first-operand [ops] (first ops))
 (defn rest-operands [ops] (rest ops))
 
-(defn application? [exp] true)
+(defn application? [exp] (not (nil? exp)))
 
-
+(def ^:private env
+  (extend-environment (primitive-procedure-names)
+                      (primitive-procedure-objects)
+                      (read-string "{
+f (fn [a] (+ 1 a))
+g (fn [a b] (+ a b))
+x 1
+y 2
+z 2
+}")))
 
 (comment
 

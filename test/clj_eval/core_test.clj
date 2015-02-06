@@ -2,15 +2,18 @@
   (:require [clojure.test :refer :all]
             [clj-eval.core :refer :all]))
 
-
-(def env
-  (read-string "{
+(def ^:private env
+  (extend-environment (primitive-procedure-names)
+                      (primitive-procedure-objects)
+                      (read-string "{
 f (fn [a] (+ 1 a))
 g (fn [a b] (+ a b))
 x 1
 y 2
 z 2
-}"))
+}")))
+
+
 
 
 (deftest primitives
@@ -23,13 +26,14 @@ z 2
   (testing "Evaluation of variables should work"
     (is (= (l-eval 'x env) 1))
     (is (= (l-eval 'y env) 2))
-    (is (= (l-eval 'f env) '(fn [a] (+ 1 a))))))
+    (is (= (drop-last (l-eval 'f env)) '(procedure [a] ((+ 1 a)))))))
 
 (deftest expressions
   (testing "Evaluation of expressions should work"
     (is (= (l-eval '(+ 1 x) env) 2))
     (is (= (l-eval '(+ x y) env) 3))
     (is (= (l-eval '(+ (+ x y) 1) env) 4))
+    (is (= (l-eval '(- (+ x y 3) 1) env) 5))
     (is (= (l-eval '(+ (+ 2 3) 1) env) 6))))
 
 (deftest lambdas
