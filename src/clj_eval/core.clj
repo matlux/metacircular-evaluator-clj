@@ -8,6 +8,9 @@
   (and (seq? x)
        (empty? x)))
 
+(defn boolean? [x]
+  (= (type x) java.lang.Boolean))
+
 (defn pair
   [xs ys]
   {:pre [(= (count xs) (count ys))]}
@@ -97,7 +100,7 @@
         (quoted? exp) (text-of-quotation exp)
         (assignment? exp) (eval-assignment exp env)
         (definition? exp) (eval-definition exp env)
-        ;;(if? exp) (eval-if exp env)
+        (if? exp) (eval-if exp env)
         (lambda? exp)
         (make-procedure (lambda-parameters exp)
                         (lambda-body exp)
@@ -136,12 +139,15 @@
   (eval-sequence '(+ 3 y) env)
   (l-eval '(+ 3 y) env)
   (def exp '(cons 1 '(2 3)))
+
+  (if-consequent '(if true "a" "b"))
+  (if-alternative '(if true "a" "b"))
+  (if-consequent '(if true "a" "b"))
+
   )
 
 (defn text-of-quotation [txt]
   (do (println txt) (rest txt)))
-
-(text-of-quotation '(l-quote 1 2))
 
 (defn list-of-values [exps env]
   (if (no-operands? exps)
@@ -159,6 +165,13 @@
   (if (true? (l-eval (if-predicate exp) env))
       (l-eval (if-consequent exp) env)
       (l-eval (if-alternative exp) env)))
+
+(defn if? [exp] (tagged-list? exp 'if))
+(defn if-predicate [exp] (second exp))
+(defn if-consequent [exp] (third exp))
+(defn if-alternative [exp]
+  (if (not (null? (-> exp rest rest rest)))
+      (fourth exp) nil))
 
 (defn eval-sequence [exps env]
   (cond (last-exp? exps) (l-eval (first exps) env)
@@ -196,9 +209,14 @@
 (defn self-evaluating? [exp]
   (cond (number? exp) true
         (string? exp) true
+        (boolean? exp) true
         (= 'procedure (and (seq? exp) (first exp))) true
         :else false))
 (comment
+
+  (boolean? false)
+  (type (type true))
+
 (def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
   )
 

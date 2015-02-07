@@ -18,9 +18,10 @@ z 2
 
 (deftest primitives
   (testing "Evaluation of primitives should work"
-    (is (= (l-eval 'x env) 1))
-    (is (= (l-eval '(+ x y) env) 3))
-    (is (= (l-eval '(+ (+ x y) 1) env) 4))))
+    (is (= (l-eval 42 env) 42))
+    (is (= (l-eval true env) true))
+    (is (= (l-eval "abc" env) "abc"))
+    (is (= (l-eval '(procedure _ _ _) env) '(procedure _ _ _)))))
 
 (deftest variables
   (testing "Evaluation of variables should work"
@@ -31,6 +32,8 @@ z 2
 (deftest special-foms
   (testing "Evaluation of variables should work"
     (is (= (l-eval '(l-quote 5 6) env) '(5 6)))
+    (is (= (l-eval '(if true 5 6) env) 5))
+    (is (= (l-eval '(if false 5 6) env) 6))
 
     ))
 
@@ -47,7 +50,10 @@ z 2
 (deftest lambdas
   (testing "Evaluation of anonymous functions should work"
     (is (= (l-eval '((fn [x] (+ 1 x)) 42) env) 43))
-    (is (= (l-eval '((fn [x y] (+ x y)) 42 42) env) 84))))
+    (is (= (l-eval '((fn [x y] (+ x y)) 42 42) env) 84))
+    (is (= (l-eval '((fn [x y] (+ ((fn [] (+ x 1))) y)) 42 42) env) 85))
+    (is (= (l-eval '((fn [x y] (+ ((fn [b] (+ x b)) 3) y)) 42 42) env) 87))
+    (is (= (l-eval '((fn [x y] (+ ((fn [y] (+ x y)) 3) y)) 42 42) env) 87))))
 
 
 (deftest functions
