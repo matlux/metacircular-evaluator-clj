@@ -35,60 +35,13 @@
 (defn last-exp? [exps] (= (count exps) 1))
 
 
-
-
-
 (comment
- (def program (read-string "1"))
-  (def program1 (read-string "y"))
-  (def program2 (read-string "(+ 1 2)"))
-  (def exp (read-string "((fn [x] (+ 2 x)) 3)"))
-  (def exp (read-string "(fn [x] (+ 2 x))"))
 
-  (def exp program2)
-  (def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
-  (def exp '((procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) 1))
   (def exp '+)
   (def exp 'y)
   (l-eval exp env)
   (def exp '(+ 1 1))
-  (def exp (read-string "((fn [x] (+ 2 x)) 3)"))
-  (def exp '(+ 1 y))
-  (l-eval (read-string "(+ 2 y)") env)
-  (l-eval (read-string "(+ (+ 2 y) 4)") env)
-  (l-eval (read-string "((fn [x] (+ 2 x)) 3)") env)
-  (l-eval 'f env)
-  (l-eval '(f 2) env)
-  (l-eval '((fn [x] (+ 1 x)) 42) env)
-  (l-eval '(g 3 2) env)
-  (l-eval (read-string "(f 2)") env)
-  (l-eval (read-string "(f 2)") env)
-  (l-eval (read-string "(fn [x] (+ 2 x))") env)
-  (l-eval '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}) env)
-  (def procedure '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
-  (operator program2)
-  (operands program2)
 
-  (def exp '(f 2))
-  (def procedure (l-eval (operator exp) env))
-  (def args (list-of-values (operands exp) env))
-
-  (merge (pair '(x y z) '(1 2 3) ) {'a 7})
-
-  (def env '{z 2, y 2, g (fn [a b] (- a b)), f (fn [a b] (+ a b)), x 1})
-  (def exps '((+ 2 x)))
-
-  (l-eval '(l-quote "a" "b") env)
-  (def exp '(l-quote "a" "b"))
-  (l-eval exp env)
-  (l-eval '+ env)
-  (l-eval '(+ 2 x) env)
-  (def exp (first exps))
-  (l-eval (first exps) env)
-  (l-eval exp env)
-
-  (cond true 2
-                          :else 4)
   )
 
 
@@ -120,7 +73,6 @@
         (error "Unknown expression type -- EVAL" exp)))
 
 (comment
-
   (def procedure (list 'primitive +))
   (def args '(1 1))
   )
@@ -165,6 +117,8 @@
                           procedure-environment]
   (merge procedure-environment (pair procedure-parameters args )))
 
+(defn define-variable! [var val env]
+  (assoc env var val))
 
 (defn eval-if [exp env]
   (if (true? (l-eval (if-predicate exp) env))
