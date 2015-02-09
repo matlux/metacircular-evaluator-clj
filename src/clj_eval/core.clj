@@ -52,6 +52,7 @@
   (def exp 'y)
   (l-eval exp env)
   (def exp '(+ 1 1))
+  (def exp (read-string "((fn [x] (+ 2 x)) 3)"))
   (def exp '(+ 1 y))
   (l-eval (read-string "(+ 2 y)") env)
   (l-eval (read-string "(+ (+ 2 y) 4)") env)
@@ -84,6 +85,10 @@
   (l-eval '(+ 2 x) env)
   (def exp (first exps))
   (l-eval (first exps) env)
+  (l-eval exp env)
+
+  (cond true 2
+                          :else 4)
   )
 
 
@@ -105,9 +110,9 @@
         (make-procedure (lambda-parameters exp)
                         (lambda-body exp)
                         env)
-        ;;(begin? exp)
-        ;;(eval-sequence (begin-actions exp) env)
-        ;;(cond? exp) (l-eval (cond->if exp) env)
+        (begin? exp)
+        (eval-sequence (begin-actions exp) env)
+        (cond? exp) (l-eval (cond->if exp) env)
         (application? exp)
         (l-apply (l-eval (operator exp) env)
                  (list-of-values (operands exp) env))
@@ -183,6 +188,8 @@
   {'+ +
    '- -
    'cons cons
+   '= =
+   'println println
    })
 (defn primitive-procedure-names []
   (keys primitive-procedures))
@@ -213,7 +220,7 @@
         (= 'procedure (and (seq? exp) (first exp))) true
         :else false))
 (comment
-
+(def proc procedure)
   (boolean? false)
   (type (type true))
 
@@ -268,6 +275,47 @@
 
 (defn application? [exp] (not (nil? exp)))
 
+(defn make-if [predicate consequent alternative]
+  (list 'if predicate consequent alternative))
+
+(defn begin? [exp] (tagged-list? exp 'do))
+(defn begin-actions [exp] (rest exp))
+(defn last-exp? [seq] (null? (rest seq)))
+(defn first-exp [seq] (first seq))
+(defn rest-exps [seq] (rest seq))
+
+(defn make-begin [seq] (cons 'do seq))
+
+(defn sequence->exp [seq]
+  (cond (null? seq) seq
+        (last-exp? seq) (first-exp seq)
+        :else (make-begin seq)))
+
+(defn cond? [exp] (tagged-list? exp 'cond))
+(defn cond-clauses [exp] (rest exp))
+(defn cond-predicate [clause] (first clause))
+(defn cond-else-clause? [clause]
+  (= (cond-predicate clause) :else))
+
+(defn cond-actions [clause] (rest clause))
+
+(defn expand-clauses [clauses]
+  (if (null? clauses)
+    'false ; no else clause
+    (let [first (first clauses)
+          rest (rest clauses)]
+      (if (cond-else-clause? first)
+        (if (null? rest)
+          (sequence->exp (cond-actions first))
+          (error "ELSE clause isn't last -- COND->IF"
+                 clauses))
+        (make-if
+         (cond-predicate first)
+         (sequence->exp (cond-actions first))
+         (expand-clauses rest))))))
+(defn cond->if [exp]
+  (expand-clauses (cond-clauses exp)))
+
 (def ^:private env
   (extend-environment (primitive-procedure-names)
                       (primitive-procedure-objects)
@@ -285,5 +333,16 @@ z 2
   (lookup-var 'y env)
   (quoted? '(quote (1 2 3) ))
   (pair? '( 1 2))
+
+  (def exp '(cond (true 2)
+          (:else 4)))
+
+  (def exp '(cond (false 2)
+                  (:else 4)))
+
+  (def exp '(cond ((= x 2) 42)
+                  ((= x 3) -1)
+                  ((= x 4) -2)
+          (:else 4)))
 
   )

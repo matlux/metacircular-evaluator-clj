@@ -61,3 +61,21 @@ z 2
     (is (= (l-eval '(f 2) env) 3))
     (is (= (l-eval '(g 2 3) env) 5))
     (is (= (l-eval '(f (g 2 3)) env) 6))))
+
+
+(deftest cond
+  (testing "Calls to cond should work"
+    (is (= (l-eval '(cond (true 2)
+                          (:else 4)) env) 2))
+
+    (is (= (l-eval '(cond (false 2)
+                          (:else 4)) env) 4))
+    ))
+
+(deftest begin
+  (testing "Calls to do should work"
+    (is (= (l-eval '(do (println "hello" 1 1)
+                          (+ 2 2)) env) 4))
+
+
+))
