@@ -31,7 +31,7 @@ z 2
 
 (deftest special-foms
   (testing "Evaluation of variables should work"
-    (is (= (l-eval '(l-quote 5 6) env) '(5 6)))
+    (is (= (l-eval '(l-quote (5 6)) env) '(5 6)))
     (is (= (l-eval '(if true 5 6) env) 5))
     (is (= (l-eval '(if false 5 6) env) 6))
 
@@ -45,7 +45,7 @@ z 2
     (is (= (l-eval '(+ (+ x y) 1) env) 4))
     (is (= (l-eval '(- (+ x y 3) 1) env) 5))
     (is (= (l-eval '(+ (+ 2 3) 1) env) 6))
-    (is (= (l-eval (list 'cons 1 (list 'l-quote 2 3)) env) '(1 2 3)))))
+    (is (= (l-eval (list 'cons 1 (list 'l-quote '(2 3))) env) '(1 2 3)))))
 
 (deftest lambdas
   (testing "Evaluation of anonymous functions should work"
@@ -79,3 +79,13 @@ z 2
 
 
 ))
+
+(deftest standard-functions
+  (testing "Calls to functions should work"
+    (is (= (l-eval '(cons 1 (cons 2 ())) env) '(1 2)))
+    (is (= (l-eval '(= 1 2) env) false))
+    (is (= (l-eval '(= 1 1) env) true))
+    (is (= (l-eval '(= 1 2) env) false))
+    (is (= (l-eval '(count  (l-quote (1 2))) env) 2))
+
+    ))

@@ -104,7 +104,7 @@
   )
 
 (defn text-of-quotation [txt]
-  (do (println txt) (rest txt)))
+  (do (println txt) (second txt)))
 
 (defn list-of-values [exps env]
   (if (no-operands? exps)
@@ -142,6 +142,7 @@
   {'+ +
    '- -
    'cons cons
+   'count count
    '= =
    'println println
    })
