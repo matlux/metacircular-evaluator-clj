@@ -177,6 +177,7 @@
 (def proc procedure)
   (boolean? false)
   (type (type true))
+  (def exp '(def t 42))
 
 (def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
   )
@@ -206,8 +207,27 @@
 (defn assignment-variable [exp] (second exp))
 (defn assignment-value [exp] (first (rest (rest exp))))
 
+(defn make-lambda [parameters body]
+  (cons 'fn (cons parameters body)))
+
 (defn definition? [exp]
-  (tagged-list? exp 'defn))
+  (tagged-list? exp 'def))
+
+(defn definition-variable [exp]
+  (if (symbol? (second exp))
+    (second exp)
+      (third exp)))
+(defn definition-value [exp]
+  (if (symbol? (second exp))
+      (third exp)
+      (make-lambda (rest (second exp))
+                   (rest (rest exp)))))
+
+(defn eval-definition [exp env]
+  (define-variable! (definition-variable exp)
+                    (l-eval (definition-value exp) env)
+                    env)
+  'ok)
 
 (comment
   (lambda? '(fn [x] (+ 2 x)))
