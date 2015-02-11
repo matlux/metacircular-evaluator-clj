@@ -21,6 +21,7 @@ z 2
     (is (= (l-eval 42 env) 42))
     (is (= (l-eval true env) true))
     (is (= (l-eval "abc" env) "abc"))
+    (is (= (l-eval () env) ()))
     (is (= (l-eval '(procedure _ _ _) env) '(procedure _ _ _)))))
 
 (deftest variables
@@ -37,6 +38,11 @@ z 2
 
     ))
 
+(deftest definitions
+  (testing "Evaluation of variables should work"
+    (is (= (l-eval '(def a 42) env) (list 'updated-env (merge env {'a 42}))))
+
+    ))
 
 (deftest expressions
   (testing "Evaluation of expressions should work"
@@ -87,5 +93,6 @@ z 2
     (is (= (l-eval '(= 1 1) env) true))
     (is (= (l-eval '(= 1 2) env) false))
     (is (= (l-eval '(count  (l-quote (1 2))) env) 2))
+    (is (= (l-eval '(empty?  (l-quote (1 2))) env) false))
 
     ))

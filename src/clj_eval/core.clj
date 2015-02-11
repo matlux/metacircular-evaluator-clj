@@ -41,6 +41,7 @@
   (def exp 'y)
   (l-eval exp env)
   (def exp '(+ 1 1))
+  (def exp '(def a 1))
 
   )
 
@@ -143,6 +144,7 @@
    '- -
    'cons cons
    'count count
+   'empty? empty?
    '= =
    'println println
    })
@@ -172,6 +174,7 @@
   (cond (number? exp) true
         (string? exp) true
         (boolean? exp) true
+        (and (seq? exp) (empty? exp)) true
         (= 'procedure (and (seq? exp) (first exp))) true
         :else false))
 (comment
@@ -225,10 +228,9 @@
                    (rest (rest exp)))))
 
 (defn eval-definition [exp env]
-  (define-variable! (definition-variable exp)
-                    (l-eval (definition-value exp) env)
-                    env)
-  'ok)
+  (list 'updated-env (define-variable! (definition-variable exp)
+     (l-eval (definition-value exp) env)
+     env)))
 
 (comment
   (lambda? '(fn [x] (+ 2 x)))
