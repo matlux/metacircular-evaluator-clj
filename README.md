@@ -11,7 +11,7 @@ Run the repl:
 lein run
 ```
 
-or run the test:
+or run the tests:
 ```
 lein test
 ```
