@@ -144,6 +144,8 @@
    '- -
    'cons cons
    'count count
+   'first first
+   'rest rest
    'empty? empty?
    '= =
    'println println
@@ -229,7 +231,7 @@
 
 (defn eval-definition [exp env]
   (list 'updated-env (define-variable! (definition-variable exp)
-     (l-eval (definition-value exp) env)
+                       (definition-value exp)
      env)))
 
 (comment
@@ -293,20 +295,56 @@
 (defn cond->if [exp]
   (expand-clauses (cond-clauses exp)))
 
-(def ^:private env
+(def  env
   (extend-environment (primitive-procedure-names)
                       (primitive-procedure-objects)
                       (read-string "{
 f (fn [a] (+ 1 a))
 g (fn [a b] (+ a b))
+map (fn [f coll]
+             (if (empty? coll)
+               ()
+               (cons (f (first coll)) (map f (rest coll)))))
+filter (fn [f coll]
+             (if (empty? coll)
+               ()
+               (if (f (first coll))
+                 (cons (first coll) (filter f (rest coll)))
+                 (filter f (rest coll)))))
 x 1
 y 2
 z 2
 }")))
 
+(defn repl-loop [env]
+  (print "REPL> ")
+  (flush)
+  (let [line (read-line)
+        output (l-eval (read-string line) env)]
+    (println output)
+    (if (tagged-list? output 'updated-env)
+      (recur (second output))
+      (recur env))
+    ))
+
+(defn -main []
+  (repl-loop env))
+
 (comment
 
 
+  (fn [f coll]
+             (if (empty? coll)
+               ()
+               (if (f (first coll))
+                 (map f (rest coll))
+                 (cons (f (first coll)) (map f (rest coll))))))
+  (def my-map (fn [f coll]
+             (if (empty? coll)
+               ()
+               (cons (f (first coll)) (map f (rest coll))))))
+  (map (fn [x] (+ 1 x)) (l-quote (1 2 3 )))
+  (def map clojure.core/map)
   (lookup-var 'y env)
   (quoted? '(quote (1 2 3) ))
   (pair? '( 1 2))
