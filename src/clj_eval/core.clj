@@ -16,10 +16,6 @@
   {:pre [(= (count xs) (count ys))]}
   (into {} (map vector xs ys)))
 
-(comment
-  (pair '(x y z) '(1 2 3))
-  )
-
 (defn pair? [sx]
   (= (count sx) 2))
 
@@ -33,18 +29,6 @@
 
 (defn error [& msg] (throw (Exception. (apply str msg))))
 (defn last-exp? [exps] (= (count exps) 1))
-
-
-(comment
-
-  (def exp '+)
-  (def exp 'y)
-  (l-eval exp env)
-  (def exp '(+ 1 1))
-  (def exp '(def a 1))
-
-  )
-
 
 (declare self-evaluating? variable? lookup-var quoted? text-of-quotation assignment? eval-assignment definition? eval-definition
          if? eval-if lambda? make-procedure lambda-parameters lambda-body
@@ -73,11 +57,6 @@
         :else
         (error "Unknown expression type -- EVAL" exp)))
 
-(comment
-  (def procedure (list 'primitive +))
-  (def args '(1 1))
-  )
-
 (defn l-apply [procedure args]
   (cond (primitive-procedure? procedure) (apply-primitive-procedure procedure args)
         (compound-procedure? procedure)
@@ -88,21 +67,6 @@
           args
           (procedure-environment procedure)))
         :else (error "Unknown procedure type -- APPLY" procedure)))
-
-(comment
-  (list-of-values '(2 (l-quote 2 3)) env)
-  (def exps '(x))
-  (def exp 'x)
-  (def exps '((+ 2 x)))
-  (eval-sequence '(+ 3 y) env)
-  (l-eval '(+ 3 y) env)
-  (def exp '(cons 1 '(2 3)))
-
-  (if-consequent '(if true "a" "b"))
-  (if-alternative '(if true "a" "b"))
-  (if-consequent '(if true "a" "b"))
-
-  )
 
 (defn text-of-quotation [txt]
   (second txt))
@@ -181,14 +145,6 @@
         (and (seq? exp) (empty? exp)) true
         (= 'procedure (and (seq? exp) (first exp))) true
         :else false))
-(comment
-(def proc procedure)
-  (boolean? false)
-  (type (type true))
-  (def exp '(def t 42))
-
-(def exp '(procedure [x] ((+ 2 x)) {f (fn [a b] (+ a b)), g (fn [a b] (- a b)), x 1, y 2, z 2}))
-  )
 
 (defn variable? [exp] (symbol? exp))
 
@@ -235,14 +191,6 @@
   (list 'updated-env (define-variable! (definition-variable exp)
                        (definition-value exp)
      env)))
-
-(comment
-  (lambda? '(fn [x] (+ 2 x)))
-   (primitive-procedure-names)
-   (primitive-procedure-objects)
-   (primitive-implementation '(primitive sadfsafs) (1 2))
-   env
-  )
 
 (defn lambda? [exp] (tagged-list? exp 'fn))
 (defn lambda-parameters [exp] (second exp))
@@ -338,43 +286,3 @@ z 2
 
 (defn -main []
   (repl-loop env))
-
-(comment
-
-
-  (def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2)))))))
-  (map fib (range 0 17))
-  (fn [f coll]
-             (if (empty? coll)
-               ()
-               (if (f (first coll))
-                 (map f (rest coll))
-                 (cons (f (first coll)) (map f (rest coll))))))
-  (def my-map (fn [f coll]
-             (if (empty? coll)
-               ()
-               (cons (f (first coll)) (map f (rest coll))))))
-  (def foldl (fn [f val coll]
-                (if (= (count coll) 1)
-                  (f val (first coll))
-                  (foldl f (f val (first coll)) (rest coll) ))))
-
-  (foldl + 0 (l-quote (1 2 3)))
-  (map (fn [x] (+ 1 x)) (l-quote (1 2 3 )))
-  (def map clojure.core/map)
-  (lookup-var 'y env)
-  (quoted? '(quote (1 2 3) ))
-  (pair? '( 1 2))
-
-  (def exp '(cond (true 2)
-          (:else 4)))
-
-  (def exp '(cond (false 2)
-                  (:else 4)))
-
-  (def exp '(cond ((= x 2) 42)
-                  ((= x 3) -1)
-                  ((= x 4) -2)
-          (:else 4)))
-
-  )

@@ -2,6 +2,7 @@
 
 A Clojure implementation of the Meta-circular Evaluator. It is following as closely as possible the suggested implementation of SICP chapter 4.
 
+Some aspect have been addapted to Clojure, like the use of map instead of the list of pair in Lisp. The implementation of the definitions do not mutate the environment. Instead a new environment is return which I believe is functionally purer.
 
 ## Usage
 
