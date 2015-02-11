@@ -66,7 +66,7 @@
     ))
 
 
-(deftest cond
+(deftest cond-test
   (testing "Calls to cond should work"
     (is (= (l-eval '(cond (true 2)
                           (:else 4)) env) 2))
