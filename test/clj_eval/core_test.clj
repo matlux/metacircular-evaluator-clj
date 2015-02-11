@@ -15,6 +15,8 @@
   (testing "Evaluation of variables should work"
     (is (= (l-eval 'x env) 1))
     (is (= (l-eval 'y env) 2))
+    (is (= (try (l-eval 'do-not-exist env)
+                (catch Exception e (.getMessage e))) "do-not-exist is not a valid symbol"))
     (is (= (drop-last (l-eval 'f env)) '(procedure [a] ((+ 1 a)))))))
 
 (deftest special-foms
@@ -60,6 +62,7 @@
     (is (= (l-eval (list 'map '(fn [x] (+ 1 x)) '(l-quote (1 2 3 ))) env) '(2 3 4)))
     (is (= (l-eval '(map (fn [x] (+ 1 x)) (l-quote (1 2 3 ))) env) '(2 3 4)))
     (is (= (l-eval '(filter (fn [x] (= 2 x)) (l-quote (1 2 3 ))) env) '(2)))
+    (is (= (l-eval '(foldl + 0 (range 99)) env) 4851))
     ))
 
 
@@ -74,7 +77,7 @@
 
 (deftest begin
   (testing "Calls to do should work"
-    (is (= (l-eval '(do (println "hello" 1 1)
+    (is (= (l-eval '(do (println "testing side effect")
                           (+ 2 2)) env) 4))
 
 
@@ -90,3 +93,26 @@
     (is (= (l-eval '(empty?  (l-quote (1 2))) env) false))
 
     ))
+
+(def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+
+(deftest definition-recurcivity-test
+  (testing "Eval to tail recursive functions should not blow the stack"
+    (is (= (let [[_ new-env] (l-eval fib-definition env)]
+             (l-eval '(fib 17) new-env)) 1597))))
+
+(deftest StackOverflowError-test
+  (testing "Eval to tail recursive functions should not blow the stack"
+    (is (= (let [[_ new-env] (l-eval fib-definition env)]
+             (first (l-eval '(map fib (map (fn [_] 5) (range 500))) new-env))) 5))
+
+    (is (= (try (let [[_ new-env] (l-eval fib-definition env)]
+                  (l-eval '(map fib (map (fn [_] 5) (range 3000))) new-env))
+                (catch StackOverflowError e (.toString e))) "java.lang.StackOverflowError"))
+    ))
+
+
+(comment
+  (let [[_ new-env] (l-eval '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))) env)]
+    new-env)
+  )

@@ -31,7 +31,7 @@
 (defn fourth [x]
   (second (rest (rest x))))
 
-(defn error [& msg] (apply println msg))
+(defn error [& msg] (throw (Exception. (apply str msg))))
 (defn last-exp? [exps] (= (count exps) 1))
 
 
@@ -105,7 +105,7 @@
   )
 
 (defn text-of-quotation [txt]
-  (do (println txt) (second txt)))
+  (second txt))
 
 (defn list-of-values [exps env]
   (if (no-operands? exps)
@@ -146,6 +146,7 @@
    'count count
    'first first
    'rest rest
+   'range range
    'empty? empty?
    '= =
    'println println
@@ -176,6 +177,7 @@
   (cond (number? exp) true
         (string? exp) true
         (boolean? exp) true
+        (nil? exp) true
         (and (seq? exp) (empty? exp)) true
         (= 'procedure (and (seq? exp) (first exp))) true
         :else false))
@@ -192,9 +194,9 @@
 
 (defn lookup-var [var env]
   (let [item (env var)]
-    (if (tagged-list? item 'fn)
-      (l-eval item env)
-      item)))
+    (cond (tagged-list? item 'fn) (l-eval item env)
+          (nil? item) (error var " is not a valid symbol")
+          :else item)))
 
 (defn quoted? [exp]
   (tagged-list? exp 'l-quote))
@@ -311,6 +313,10 @@ filter (fn [f coll]
                (if (f (first coll))
                  (cons (first coll) (filter f (rest coll)))
                  (filter f (rest coll)))))
+foldl (fn [f val coll]
+                (if (= (count coll) 1)
+                  (f val (first coll))
+                  (foldl f (f val (first coll)) (rest coll) )))
 x 1
 y 2
 z 2
@@ -320,7 +326,10 @@ z 2
   (print "REPL> ")
   (flush)
   (let [line (read-line)
-        output (l-eval (read-string line) env)]
+        output (try
+                 (l-eval (read-string line) env)
+                 (catch Exception e (str (.printStackTrace e) (.getMessage e)))
+                 (catch StackOverflowError e (str (.printStackTrace e) (.getMessage e))))]
     (println output)
     (if (tagged-list? output 'updated-env)
       (recur (second output))
@@ -333,6 +342,8 @@ z 2
 (comment
 
 
+  (def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2)))))))
+  (map fib (range 0 17))
   (fn [f coll]
              (if (empty? coll)
                ()
@@ -343,6 +354,12 @@ z 2
              (if (empty? coll)
                ()
                (cons (f (first coll)) (map f (rest coll))))))
+  (def foldl (fn [f val coll]
+                (if (= (count coll) 1)
+                  (f val (first coll))
+                  (foldl f (f val (first coll)) (rest coll) ))))
+
+  (foldl + 0 (l-quote (1 2 3)))
   (map (fn [x] (+ 1 x)) (l-quote (1 2 3 )))
   (def map clojure.core/map)
   (lookup-var 'y env)

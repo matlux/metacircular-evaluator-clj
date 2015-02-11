@@ -1,14 +1,24 @@
 # clj-eval
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure implementation of the Meta-circular Evaluator. It is following as closely as possible the suggested implementation of SICP chapter 4.
+
 
 ## Usage
 
-FIXME
+
+Run the repl:
+```
+lein run
+```
+
+or run the test:
+```
+lein test
+```
 
 ## License
 
-Copyright © 2015 FIXME
+Copyright © 2015 Matlux Ltd
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
