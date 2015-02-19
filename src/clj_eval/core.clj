@@ -37,6 +37,11 @@
          compound-procedure? eval-sequence procedure-parameters procedure-environment procedure-body
          extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?)
 
+(comment
+
+(def exp '(def x 43))
+  )
+
 (defn l-eval [exp env]
   (cond (self-evaluating? exp) exp
         (variable? exp) (lookup-var exp env)
@@ -53,19 +58,19 @@
         (cond? exp) (l-eval (cond->if exp) env)
         (application? exp)
         (l-apply (l-eval (operator exp) env)
-                 (list-of-values (operands exp) env))
+                 (list-of-values (operands exp) env) env)
         :else
         (error "Unknown expression type -- EVAL" exp)))
 
-(defn l-apply [procedure args]
+(defn l-apply [procedure args global-env] ;; needed to add the env for recursivity to work so symbol lookup could fall back onto global env. But that's not great because that means recursive function lookup is dynamic (rather than lexical) binding
   (cond (primitive-procedure? procedure) (apply-primitive-procedure procedure args)
         (compound-procedure? procedure)
         (eval-sequence
          (procedure-body procedure)
-         (extend-environment
-          (procedure-parameters procedure)
-          args
-          (procedure-environment procedure)))
+         (merge global-env (extend-environment
+           (procedure-parameters procedure)
+           args
+           (procedure-environment procedure))))
         :else (error "Unknown procedure type -- APPLY" procedure)))
 
 (defn text-of-quotation [txt]
@@ -189,7 +194,7 @@
 
 (defn eval-definition [exp env]
   (list 'updated-env (define-variable! (definition-variable exp)
-                       (definition-value exp)
+                       (l-eval (definition-value exp) env)
      env)))
 
 (defn lambda? [exp] (tagged-list? exp 'fn))
@@ -269,6 +274,20 @@ x 1
 y 2
 z 2
 }")))
+
+(defn load-expr [[_ env] exp]
+  (let [output (try
+                 (l-eval exp env)
+                 (catch Exception e (str (.printStackTrace e) (.getMessage e))))]
+    ;;(println output)
+    (if (tagged-list? output 'updated-env)
+      ['ok (second output)]
+      [output env])
+    ))
+
+(defn load [^String script-content env]
+  (let [script (read-string (str "[" script-content "]"))]
+    (reduce load-expr [nil env] script)))
 
 (defn repl-loop [env]
   (print "REPL> ")

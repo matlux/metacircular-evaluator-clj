@@ -94,6 +94,29 @@
 
     ))
 
+(deftest test-load
+  (testing "loading a script"
+    (is (= (first (load "
+(def a 42)
+a
+" env)) 42))))
+
+(deftest test-lexical-binding
+  (testing "loading a script"
+    (is (= (first (load "
+(def x 42)
+(def f (fn [] x))
+(f)
+((fn [x] (f)) 7)
+" env)) 42))
+    (is (= (first (load "
+(def x 42)
+(def f (fn [] x))
+(f)
+((fn [x] (f)) 7)
+x
+" env)) 42))))
+
 (def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
 
 (deftest definition-recurcivity-test
