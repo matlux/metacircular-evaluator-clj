@@ -293,6 +293,9 @@ y 2
 z 2
 }")))
 
+(defn l-eval-root [exp env]
+  (l-eval exp env identity))
+
 (defn load-expr [[_ env] exp]
   (let [output (try
                  (l-eval exp env identity)
