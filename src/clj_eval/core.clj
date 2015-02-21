@@ -42,45 +42,56 @@
 (def exp '(def x 43))
   )
 
-(defn l-eval [exp env]
-  (cond (self-evaluating? exp) exp
-        (variable? exp) (lookup-var exp env)
-        (quoted? exp) (text-of-quotation exp)
-        (assignment? exp) (eval-assignment exp env)
-        (definition? exp) (eval-definition exp env)
-        (if? exp) (eval-if exp env)
+(defn l-eval [exp env k]
+  (cond (self-evaluating? exp) (k exp)
+        (variable? exp) (lookup-var exp env k)
+        (quoted? exp) (k (text-of-quotation exp))
+        (assignment? exp) (k (eval-assignment exp env))
+        (definition? exp) (eval-definition exp env k)
+        (if? exp) (eval-if exp env k)
         (lambda? exp)
-        (make-procedure (lambda-parameters exp)
-                        (lambda-body exp)
-                        env)
+        (k (make-procedure (lambda-parameters exp)
+                         (lambda-body exp)
+                         env))
         (begin? exp)
-        (eval-sequence (begin-actions exp) env)
-        (cond? exp) (l-eval (cond->if exp) env)
+        (eval-sequence (begin-actions exp) env k)
+        (cond? exp) (l-eval (cond->if exp) env k)
         (application? exp)
-        (l-apply (l-eval (operator exp) env)
-                 (list-of-values (operands exp) env) env)
+        (l-eval (operator exp) env
+                (fn [op-r] (list-of-values (operands exp) env
+                                          (fn [lv-r] (l-apply op-r lv-r env k)))))
+        ;;(l-apply (l-eval (operator exp) env)
+        ;;         (list-of-values (operands exp) env) env k)
         :else
         (error "Unknown expression type -- EVAL" exp)))
 
-(defn l-apply [procedure args global-env] ;; needed to add the env for recursivity to work so symbol lookup could fall back onto global env. But that's not great because that means recursive function lookup is dynamic (rather than lexical) binding
-  (cond (primitive-procedure? procedure) (apply-primitive-procedure procedure args)
+(defn l-apply [procedure args global-env k] ;; needed to add the env for recursivity to work so symbol lookup could fall back onto global env. But that's not great because that means recursive function lookup is dynamic (rather than lexical) binding
+  (cond (primitive-procedure? procedure) (k (apply-primitive-procedure procedure args))
         (compound-procedure? procedure)
         (eval-sequence
          (procedure-body procedure)
          (merge global-env (extend-environment
            (procedure-parameters procedure)
            args
-           (procedure-environment procedure))))
+           (procedure-environment procedure))) k)
         :else (error "Unknown procedure type -- APPLY" procedure)))
 
 (defn text-of-quotation [txt]
   (second txt))
 
-(defn list-of-values [exps env]
+(defn list-of-values-direct [exps env]
   (if (no-operands? exps)
       '()
       (cons (l-eval (first-operand exps) env)
             (list-of-values (rest-operands exps) env))))
+
+(defn list-of-values [exps env k]
+  (if (no-operands? exps)
+      (k '())
+      (l-eval (first-operand exps) env
+              (fn [first-op] (list-of-values (rest-operands exps) env
+                                     (fn [rest-op] (k (cons first-op rest-op))))))
+      ))
 
 (defn extend-environment [procedure-parameters
                           args
@@ -90,10 +101,16 @@
 (defn define-variable! [var val env]
   (assoc env var val))
 
-(defn eval-if [exp env]
+(defn eval-if-direct [exp env k]
   (if (true? (l-eval (if-predicate exp) env))
       (l-eval (if-consequent exp) env)
       (l-eval (if-alternative exp) env)))
+
+(defn eval-if [exp env k]
+  (l-eval (if-predicate exp) env
+          (fn [r] (if r
+                   (l-eval (if-consequent exp) env k)
+                   (l-eval (if-alternative exp) env k)))))
 
 (defn if? [exp] (tagged-list? exp 'if))
 (defn if-predicate [exp] (second exp))
@@ -102,10 +119,10 @@
   (if (not (null? (-> exp rest rest rest)))
       (fourth exp) nil))
 
-(defn eval-sequence [exps env]
-  (cond (last-exp? exps) (l-eval (first exps) env)
-        :else (do (l-eval (first exps) env)
-                  (eval-sequence (rest exps) env))))
+(defn eval-sequence [exps env k]
+  (cond (last-exp? exps) (l-eval (first exps) env k)
+        :else (do (l-eval (first exps) env (fn [r] (eval-sequence (rest exps) env k)))
+                  )))
 
 (defn primitive-implementation [proc] (second proc))
 (def primitive-procedures
@@ -153,11 +170,11 @@
 
 (defn variable? [exp] (symbol? exp))
 
-(defn lookup-var [var env]
+(defn lookup-var [var env k]
   (let [item (env var)]
-    (cond (tagged-list? item 'fn) (l-eval item env)
-          (nil? item) (error var " is not a valid symbol")
-          :else item)))
+    (cond (tagged-list? item 'fn) (l-eval item env k)
+          (nil? item) (k (error var " is not a valid symbol"))
+          :else (k item))))
 
 (defn quoted? [exp]
   (tagged-list? exp 'l-quote))
@@ -192,10 +209,11 @@
       (make-lambda (rest (second exp))
                    (rest (rest exp)))))
 
-(defn eval-definition [exp env]
-  (list 'updated-env (define-variable! (definition-variable exp)
-                       (l-eval (definition-value exp) env)
-     env)))
+(defn eval-definition [exp env k]
+  (l-eval (definition-value exp) env
+          (fn [r]
+            (k (list 'updated-env (define-variable! (definition-variable exp) r
+                                  env))))))
 
 (defn lambda? [exp] (tagged-list? exp 'fn))
 (defn lambda-parameters [exp] (second exp))
@@ -277,7 +295,7 @@ z 2
 
 (defn load-expr [[_ env] exp]
   (let [output (try
-                 (l-eval exp env)
+                 (l-eval exp env identity)
                  (catch Exception e (str (.printStackTrace e) (.getMessage e))))]
     ;;(println output)
     (if (tagged-list? output 'updated-env)
