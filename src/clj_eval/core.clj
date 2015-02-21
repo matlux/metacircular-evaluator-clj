@@ -87,10 +87,10 @@
 
 (defn list-of-values [exps env k]
   (if (no-operands? exps)
-      (k '())
-      (l-eval (first-operand exps) env
-              (fn [first-op] (list-of-values (rest-operands exps) env
-                                     (fn [rest-op] (k (cons first-op rest-op))))))
+      #(k '())
+      #(l-eval (first-operand exps) env
+               (fn [first-op] (list-of-values (rest-operands exps) env
+                                             (fn [rest-op] (k (cons first-op rest-op))))))
       ))
 
 (defn extend-environment [procedure-parameters

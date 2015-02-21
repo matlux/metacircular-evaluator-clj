@@ -125,6 +125,8 @@ x
     (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
              (l-eval-root '(fib 7) new-env)) 13))
     (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
+             (l-eval-root '(fib 17) new-env)) 1597))
+    (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
              (l-eval-root '(fib 17) new-env)) 1597))))
 
 (deftest StackOverflowError-test
@@ -134,9 +136,16 @@ x
     (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
              (first (l-eval-root '(map fib (map (fn [_] 5) (range 500))) new-env))) 5))
 
-    (is (= (try (let [[_ new-env] (l-eval-root fib-definition env)]
-                  (l-eval-root '(map fib (map (fn [_] 5) (range 3000))) new-env))
-                (catch StackOverflowError e (.toString e))) "java.lang.StackOverflowError"))
+    (comment
+      (is (= (try (let [[_ new-env] (l-eval-root fib-definition env)]
+                   (l-eval-root '(map fib (map (fn [_] 5) (range 3000))) new-env))
+                 (catch StackOverflowError e (.toString e))) "java.lang.StackOverflowError")))
+    (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
+             (l-eval-root '(map fib (map (fn [_] 5) (range 3000))) new-env))
+           ))
+    (is (= (time (let [[_ new-env] (l-eval-root fib-definition env)]
+              (l-eval-root '(map fib (map (fn [_] 5) (range 30000))) new-env)))
+           ))
     ))
 
 
