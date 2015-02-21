@@ -43,7 +43,7 @@
   )
 
 (defn l-eval [exp env k]
-  (cond (self-evaluating? exp) (k exp)
+  #(cond (self-evaluating? exp) (k exp)
         (variable? exp) (lookup-var exp env k)
         (quoted? exp) (k (text-of-quotation exp))
         (assignment? exp) (k (eval-assignment exp env))
@@ -294,11 +294,11 @@ z 2
 }")))
 
 (defn l-eval-root [exp env]
-  (l-eval exp env identity))
+  (trampoline #(l-eval exp env identity)))
 
 (defn load-expr [[_ env] exp]
   (let [output (try
-                 (l-eval exp env identity)
+                 (l-eval-root exp env)
                  (catch Exception e (str (.printStackTrace e) (.getMessage e))))]
     ;;(println output)
     (if (tagged-list? output 'updated-env)
