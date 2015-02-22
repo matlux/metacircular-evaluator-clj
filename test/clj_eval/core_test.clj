@@ -119,6 +119,7 @@ x
 " env)) 42))))
 
 (def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+(def tail-rec '(def tail-rec (fn [x n] (do (if (= x n) x (tail-rec (+ x 1) n))))))
 
 (deftest definition-recurcivity-test
   (testing "Eval to tail recursive functions should not blow the stack"
@@ -143,9 +144,21 @@ x
     (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
              (l-eval-root '(map fib (map (fn [_] 5) (range 3000))) new-env))
            ))
-    (is (= (time (let [[_ new-env] (l-eval-root fib-definition env)]
-              (l-eval-root '(map fib (map (fn [_] 5) (range 30000))) new-env)))
+    (is (= (do (println "map=") (time (let [[_ new-env] (l-eval-root fib-definition env)]
+                    (l-eval-root '(map fib (map (fn [_] 5) (range 30000))) new-env))))
            ))
+    (is (= (do (println "map=") (time (let [[_ new-env] (l-eval-root fib-definition env)]
+                                        (l-eval-root '(map-cps fib (map (fn [_] 5) (range 30000)) identity) new-env))))
+           ))
+    (is (= (do (println "tail-rec=") (time (first (load "
+(def tail-rec (fn [x n] (do (if (= x n) x (tail-rec (+ x 1) n)))))
+(tail-rec 0 1000000)" env)))) 1000000))
+    (is (= (do (println "cps-rec=") (time (first (load "
+(def cps-rec (fn [x n k]
+  (do (if (= x n)
+          (k x)
+         (cps-rec (+ x 1) n k)))))
+(cps-rec 0 1000000 identity)" env)))) 1000000))
     ))
 
 

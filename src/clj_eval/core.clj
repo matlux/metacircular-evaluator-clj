@@ -288,6 +288,14 @@ foldl (fn [f val coll]
                 (if (= (count coll) 1)
                   (f val (first coll))
                   (foldl f (f val (first coll)) (rest coll) )))
+map-cps (fn [f coll k]
+  (if (empty? coll)
+    (k ())
+    (map-cps f (rest coll) (fn [r]
+                             (cons (f (first coll)) r)) )))
+inc (fn [x] (+ x 1))
+dec (fn [x] (- x 1))
+identity (fn [x] x)
 x 1
 y 2
 z 2
@@ -315,7 +323,7 @@ z 2
   (flush)
   (let [line (read-line)
         output (try
-                 (l-eval (read-string line) env)
+                 (l-eval-root (read-string line) env)
                  (catch Exception e (str (.printStackTrace e) (.getMessage e)))
                  (catch StackOverflowError e (str (.printStackTrace e) (.getMessage e))))]
     (println output)
