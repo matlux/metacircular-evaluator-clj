@@ -4,6 +4,8 @@ A Clojure implementation of the Meta-circular Evaluator. It is following as clos
 
 Some aspect have been addapted to Clojure, like the use of map instead of the list of pair in Lisp. The implementation of the definitions do not mutate the environment. Instead a new environment is return which I believe is functionally purer.
 
+[![Build Status](https://travis-ci.org/matlux/metacircular-evaluator-clj.svg?branch=master)](https://travis-ci.org/matlux/metacircular-evaluator-clj)
+
 ## Usage
 
 
