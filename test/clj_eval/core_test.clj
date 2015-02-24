@@ -20,10 +20,22 @@
     (is (= (drop-last (l-eval 'f env)) '(procedure [a] ((+ 1 a)))))))
 
 (deftest special-foms
-  (testing "Evaluation of variables should work"
+  (testing "Evaluation of special forms should work"
     (is (= (l-eval '(l-quote (5 6)) env) '(5 6)))
     (is (= (l-eval '(if true 5 6) env) 5))
     (is (= (l-eval '(if false 5 6) env) 6))
+
+    ))
+
+(deftest let-test
+  (testing "Evaluation of let blocks should work"
+    (is (= (l-eval '(let [] 3) env) 3))
+    (is (= (l-eval '(let [a 3] a) env) 3))
+    (is (= (l-eval '(let [a 3 b 4] (+ a b)) env) 7))
+    (is (= (l-eval '(let [a (+ 1 2) b (+ a 1)] (+ a b)) env) 7))
+    (is (= (l-eval '(let [a (+ 1 2) b (+ a 1) c (+ a b)] (+ a b c)) env) 14))
+    (is (= (l-eval '(let [f (fn [a b c] (+ a b c)) a (+ 1 2) b (+ a 1) c (+ a b)] (f a b c)) env) 14))
+    (is (= (l-eval '(let [f (fn [x y z] (+ x y z)) a (+ 1 2) b (+ a 1) c (+ a b)] (f a b c)) env) 14))
 
     ))
 

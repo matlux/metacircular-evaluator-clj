@@ -1,4 +1,5 @@
-(ns clj-eval.core)
+(ns clj-eval.core
+  (:require [clojure.core.match :refer [match]]))
 
 (defn atom? [x]
   (or (not (seq? x))
@@ -35,7 +36,8 @@
          begin? eval-sequence begin-actions cond? cond->if application? l-apply operator operands list-of-values error
          primitive-procedure? apply-primitive-procedure no-operands? first-operand rest-operands
          compound-procedure? eval-sequence procedure-parameters procedure-environment procedure-body
-         extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?)
+         extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?
+         let? let->lambda)
 
 (comment
 
@@ -48,6 +50,7 @@
         (quoted? exp) (text-of-quotation exp)
         (assignment? exp) (eval-assignment exp env)
         (definition? exp) (eval-definition exp env)
+        (let? exp) (l-eval (let->lambda exp) env)
         (if? exp) (eval-if exp env)
         (lambda? exp)
         (make-procedure (lambda-parameters exp)
@@ -106,6 +109,49 @@
   (cond (last-exp? exps) (l-eval (first exps) env)
         :else (do (l-eval (first exps) env)
                   (eval-sequence (rest exps) env))))
+
+(defn let? [exp] (or (tagged-list? exp 'let) (tagged-list? exp 'let1)))
+
+;; (let1 [a b] c) -> ((fn [a] c) b)
+(defn let1->lambda [bindings body]
+  (let [[sym value] bindings]
+    (if (empty? bindings)
+      body
+      (list (list 'fn [sym] body) value))))
+
+;; (let [a b c d] (+ a b c d) -> (let1 [a b] (let1 [c d] (+ a b c d)))
+(defn bindings->let1 [bindings body]
+  (let [[sym value & r] bindings]
+    (if (empty? bindings)
+      body
+      (list 'let1 [sym value] (bindings->let1 r body)))))
+
+(defn let->lambda [exp]
+  (let [[_ bindings body] exp
+        nb (count bindings)]
+    (cond (odd? nb) (error "let should have an even number of bindings")
+          (not (vector? bindings)) (error "let bindings should be a vector")
+          (tagged-list? exp 'let1) (let1->lambda bindings body)
+          :default (bindings->let1 bindings body)))
+
+  )
+
+(comment
+  (case '(1 2)
+         (()) :empty
+         [()] :one
+         [_ _] :two
+         [e &r] :more
+         :default)
+  (when-let [[ a b :as p] '(1 2 3 4)]
+    [a b p])
+  (when-let [[ a b :as p] '()]
+    [a b p])
+  (when-let [[ a b :as p] nil]
+    [a b p])
+
+  (let [[a b & roo :as boo] '(1 2 3 4)] roo)
+ )
 
 (defn primitive-implementation [proc] (second proc))
 (def primitive-procedures
