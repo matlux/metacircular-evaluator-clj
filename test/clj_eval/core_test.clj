@@ -120,14 +120,55 @@ a
 (def f (fn [] x))
 (f)
 ((fn [x] (f)) 7)
-" env)) 42))
+" {})) 42))
     (is (= (first (load "
 (def x 42)
 (def f (fn [] x))
 (f)
 ((fn [x] (f)) 7)
 x
-" env)) 42))))
+" {})) 42))
+     (is (= (first (load "
+(def w 0)
+(def foo (fn [] w))
+(let [w 42]
+   (foo))
+" env)) 0))
+
+    ;; this is a bug, this should be equal
+    (is (not= (first (load "
+(def foo (fn [x] (list x w)))
+(def bar (fn [w] (foo 1991)))
+(def w 0)
+(list (bar 100) (foo 3))
+" env)) '((1991 0) (3 0))))
+
+    ))
+
+;; currently the evaluator is dynamic binding
+(deftest test-dynamic-binding
+  (testing "loading a script"
+      (is (= (first (load "
+
+(def foo (fn [] w))
+(let [w 42]
+   (foo))
+" env)) 42))
+      (is (= (first (load "
+(def foo (fn [x] (list x w)))
+(def bar (fn [w] (foo 1991)))
+(def w 0)
+(list (bar 100) (foo 3))
+" env)) '((1991 100) (3 0))))))
+
+(deftest test-dynamic-binding-bug
+  (testing "a bug"
+      (is (= (first (load "
+(def foo (fn [x] (list x w)))
+(def bar (fn [w] (foo 1991)))
+(def w 0)
+(list (bar 100) (foo 3))
+" (assoc env 'w 2))) '((1991 2) (3 2)))) ))
 
 (def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
 

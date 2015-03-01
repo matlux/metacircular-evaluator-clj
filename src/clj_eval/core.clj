@@ -137,20 +137,7 @@
   )
 
 (comment
-  (case '(1 2)
-         (()) :empty
-         [()] :one
-         [_ _] :two
-         [e &r] :more
-         :default)
-  (when-let [[ a b :as p] '(1 2 3 4)]
-    [a b p])
-  (when-let [[ a b :as p] '()]
-    [a b p])
-  (when-let [[ a b :as p] nil]
-    [a b p])
 
-  (let [[a b & roo :as boo] '(1 2 3 4)] roo)
  )
 
 (defn primitive-implementation [proc] (second proc))
@@ -165,6 +152,7 @@
    'empty? empty?
    '= =
    'println println
+   'list list
    })
 (defn primitive-procedure-names []
   (keys primitive-procedures))
@@ -318,7 +306,6 @@ foldl (fn [f val coll]
                   (foldl f (f val (first coll)) (rest coll) )))
 x 1
 y 2
-z 2
 }")))
 
 (defn load-expr [[_ env] exp]
