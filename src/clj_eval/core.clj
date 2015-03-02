@@ -228,7 +228,7 @@
 
 (defn eval-definition [exp env]
   (list 'updated-env (define-variable! (definition-variable exp)
-                       (l-eval (definition-value exp) env)
+                       (l-eval (definition-value exp) (dissoc env (definition-variable exp)))
      env)))
 
 (defn lambda? [exp] (tagged-list? exp 'fn))

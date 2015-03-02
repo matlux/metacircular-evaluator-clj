@@ -113,6 +113,15 @@
 a
 " env)) 42))))
 
+(deftest test-recursive-fction
+  (testing "reloading recurcive fction and making sure they work"
+    (is (= (first (load "
+(def foo (fn [x] (if (= x 99) x (foo (+ x 1)))))
+ (def res (foo 4))
+ (def foo (fn [x] (if (= x 42) x (foo (+ x 1)))))
+ (list res (foo 4))
+" env)) '(99 42)))))
+
 (deftest test-lexical-binding
   (testing "loading a script"
     (is (= (first (load "
