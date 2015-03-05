@@ -112,7 +112,7 @@
 (def a 42)
 a
 " env)) 42))))
-
+(macroexpand '(recdev foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
 (deftest test-recursive-fction
   (testing "reloading recurcive fction and making sure they work"
     (is (= (first (load "
@@ -179,20 +179,21 @@ x
 (list (bar 100) (foo 3))
 " (assoc env 'w 2))) '((1991 2) (3 2)))) ))
 
-(def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+(def  fib-definition-old '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+(def fib-definition '(def fib2 (Y (fn [fib] (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))))
 
 (deftest definition-recurcivity-test
   (testing "Eval to tail recursive functions should not blow the stack"
     (is (= (let [[_ new-env] (l-eval fib-definition env)]
-             (l-eval '(fib 17) new-env)) 1597))))
+             (l-eval '(fib2 17) new-env)) 1597))))
 
 (deftest StackOverflowError-test
   (testing "Eval to tail recursive functions should not blow the stack"
     (is (= (let [[_ new-env] (l-eval fib-definition env)]
-             (first (l-eval '(map fib (map (fn [_] 5) (range 500))) new-env))) 5))
+             (first (l-eval '(map fib2 (map (fn [_] 5) (range 500))) new-env))) 5))
 
     (is (= (try (let [[_ new-env] (l-eval fib-definition env)]
-                  (l-eval '(map fib (map (fn [_] 5) (range 3000))) new-env))
+                  (l-eval '(map fib2 (map (fn [_] 5) (range 3000))) new-env))
                 (catch StackOverflowError e (.toString e))) "java.lang.StackOverflowError"))
     ))
 

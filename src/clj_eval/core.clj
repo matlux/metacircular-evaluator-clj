@@ -31,6 +31,24 @@
 (defn error [& msg] (throw (Exception. (apply str msg))))
 (defn last-exp? [exps] (= (count exps) 1))
 
+
+;; Y combinator
+(defn Y [m] ;;  λf
+  ((fn [x] ;; λx
+     (x x)) ;; f(x x)
+    (fn [x] ;; λx
+      (m (fn [arg]
+           ((x x) arg))))))
+
+(defmacro recdef-old [namefn lambda]
+  (list 'def namefn (list 'Y (list 'fn [namefn] lambda))))
+
+(defmacro defrec [namefn lambda]
+  `(def ~namefn (Y (fn [~namefn] ~lambda))))
+
+
+
+
 (declare self-evaluating? variable? lookup-var quoted? text-of-quotation assignment? eval-assignment definition? eval-definition
          if? eval-if lambda? make-procedure lambda-parameters lambda-body
          begin? eval-sequence begin-actions cond? cond->if application? l-apply operator operands list-of-values error
@@ -41,7 +59,54 @@
 
 (comment
 
-(def exp '(def x 43))
+  (def Y
+    (fn [m]
+      ((fn [x]
+         (x x))
+        (fn [x]
+          (m (fn [arg]
+               ((x x) arg)))))))
+
+
+  (defrec factorial
+          (fn [n]
+            (if (= n 0)
+              1
+              (* n (factorial (- n 1))))))
+
+  (def factorial
+    (fn [n]
+      (if (= n 0)
+        1
+        (* n (factorial (- n 1))))))
+
+  (def almost-factorial
+    (fn [f]
+      (fn [n]
+        (if (= n 0)
+          1
+          (* n (f (- n 1)))))))
+
+
+  (macroexpand '(defrec factorial
+                        (fn [n]
+                          (if (= n 0)
+                            1
+                            (* n (factorial (- n 1)))))))
+
+  (factorial 5)
+  ((Y almost-factorial) 5)
+
+  (macroexpand '(recdef fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+
+  (def fib-definition '(Y (fn [fib] (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2)))))))))
+  (macroexpand '(devrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
+
+  (let [[_ new-env] (l-eval fib-definition env)]
+    (l-eval '(fib 17) new-env))
+
+  (def exp '(def x 43))
+(l-eval ((fn [x] (+ 1 x) 2)) env)
   )
 
 (defn l-eval [exp env]
@@ -70,10 +135,10 @@
         (compound-procedure? procedure)
         (eval-sequence
          (procedure-body procedure)
-         (merge global-env (extend-environment
+         (extend-environment
            (procedure-parameters procedure)
            args
-           (procedure-environment procedure))))
+           (procedure-environment procedure)))
         :else (error "Unknown procedure type -- APPLY" procedure)))
 
 (defn text-of-quotation [txt]
@@ -290,6 +355,12 @@
                       (read-string "{
 f (fn [a] (+ 1 a))
 g (fn [a b] (+ a b))
+Y (fn [m]
+      ((fn [x]
+         (x x))
+        (fn [x]
+          (m (fn [arg]
+               ((x x) arg))))))
 map (fn [f coll]
              (if (empty? coll)
                ()
@@ -338,3 +409,5 @@ y 2
 
 (defn -main []
   (repl-loop env))
+
+
