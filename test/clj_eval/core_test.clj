@@ -155,20 +155,22 @@ x
     ))
 
 ;; currently the evaluator is dynamic binding
-(deftest test-dynamic-binding
-  (testing "loading a script"
-      (is (= (first (load "
+(comment
+
+  (deftest test-dynamic-binding
+   (testing "loading a script"
+     (is (= (first (load "
 
 (def foo (fn [] w))
 (let [w 42]
    (foo))
 " env)) 42))
-      (is (= (first (load "
+     (is (= (first (load "
 (def foo (fn [x] (list x w)))
 (def bar (fn [w] (foo 1991)))
 (def w 0)
 (list (bar 100) (foo 3))
-" env)) '((1991 100) (3 0))))))
+" env)) '((1991 100) (3 0)))))))
 
 (deftest test-dynamic-binding-bug
   (testing "a bug"
