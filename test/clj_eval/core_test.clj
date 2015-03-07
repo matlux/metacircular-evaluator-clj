@@ -112,13 +112,13 @@
 (def a 42)
 a
 " env)) 42))))
-(macroexpand '(recdev foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
+
 (deftest test-recursive-fction
   (testing "reloading recurcive fction and making sure they work"
     (is (= (first (load "
-(def foo (fn [x] (if (= x 99) x (foo (+ x 1)))))
+ (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1)))))
  (def res (foo 4))
- (def foo (fn [x] (if (= x 42) x (foo (+ x 1)))))
+ (defrec foo (fn [x] (if (= x 42) x (foo (+ x 1)))))
  (list res (foo 4))
 " env)) '(99 42)))))
 

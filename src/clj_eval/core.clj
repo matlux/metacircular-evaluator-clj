@@ -55,7 +55,7 @@
          primitive-procedure? apply-primitive-procedure no-operands? first-operand rest-operands
          compound-procedure? eval-sequence procedure-parameters procedure-environment procedure-body
          extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?
-         let? let->lambda)
+         let? let->lambda macro? l-macroexpand macro-expansion?)
 
 (comment
 
@@ -94,6 +94,10 @@
                             1
                             (* n (factorial (- n 1)))))))
 
+  (defmacro defrec [namefn lambda]
+  (list 'def namefn (list 'Y (list 'fn [namefn] lambda))))
+
+
   (factorial 5)
   ((Y almost-factorial) 5)
 
@@ -105,7 +109,40 @@
   (let [[_ new-env] (l-eval fib-definition env)]
     (l-eval '(fib 17) new-env))
 
+  (def  exp '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
+  (def  exp '(macroexpand (l-quote (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))))
+  (l-eval '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))) env)
+
+  (def exp '((procedure [namefn lambda] (list (quote def) namefn (list (quote Y) (list (quote fn) [namefn] lambda))))))
+
+  (def exp '((procedure [namefn lambda] (list (l-quote def) namefn (list (l-quote Y) (list (l-quote fn) [namefn] lambda))) env)
+              (l-quote foo) (l-quote (fn [x] (if (= x 99) x (foo (+ x 1)))))))
+
+  (l-eval '((procedure [body] ( (l-quote do) (println "hellow") body) {}) (+ 1 2)), env)
+
+  (list 'do (list (quote println) "hellow") (+ 1 2))
+
+  (def exp '(debug (+ 1 2)))
+  (def exp '(macroexpand (l-quote (debug (+ 1 2)))))
+
+  ;; target
+  (def exp (list (list 'procedure ['body] (list (list 'list (list 'l-quote 'do) (list 'list (list 'l-quote 'println) "hellow") 'body)) env) '(+ 1 2)))
+
+
+  (def exp (list (list 'procedure ['a] (list ('+ 1 'a)) env) 2))
+
+  (let [[[proc params body env] vals] (l-eval exp env)]
+    (list (list proc params body 'env) vals))
+  (l-eval exp env)
+
+  (l-apply (operator (l-eval exp env))
+           (operands (l-eval exp env)) env)
+  (l-apply (operator exp)
+           (operands exp) env)
+  (def exp '(do (+ 1 2)))
+
   (def exp '(def x 43))
+  (def exp '(fn [a] (+ 1 a)))
 (l-eval ((fn [x] (+ 1 x) 2)) env)
   )
 
@@ -124,6 +161,8 @@
         (begin? exp)
         (eval-sequence (begin-actions exp) env)
         (cond? exp) (l-eval (cond->if exp) env)
+        (macro-expansion? exp) (l-macroexpand (l-eval (second exp) env) env)
+        (macro? exp env) (l-eval (l-macroexpand exp env) env)
         (application? exp)
         (l-apply (l-eval (operator exp) env)
                  (list-of-values (operands exp) env) env)
@@ -175,6 +214,29 @@
         :else (do (l-eval (first exps) env)
                   (eval-sequence (rest exps) env))))
 
+(defn macro? [exp env]
+  (and (not (list? (operator exp))) (tagged-list? (lookup-var (operator exp) env) 'macro)
+        (not (tagged-list? (operator exp) 'macro))))
+
+(defn macro-expansion? [exp]
+  (tagged-list? exp 'macroexpand))
+
+
+(comment
+
+  (let [[_ params body] (lookup-var (operator exp) env)
+        proc-with-params (cons (make-procedure params body env) (operands exp))]
+    [(operator proc-with-params) (operands proc-with-params)] )
+  )
+
+(defn l-macroexpand [exp env]
+  (let [[_ params body] (lookup-var (operator exp) env)
+        proc-with-params (cons (make-procedure params body env) (operands exp))]
+    (l-apply (operator proc-with-params)
+             (operands proc-with-params) env)))
+
+
+
 (defn let? [exp] (or (tagged-list? exp 'let) (tagged-list? exp 'let1)))
 
 ;; (let1 [a b] c) -> ((fn [a] c) b)
@@ -210,11 +272,11 @@
   {'+ +
    '- -
    'cons cons
-   'count count
-   'first first
-   'rest rest
-   'range range
-   'empty? empty?
+   ;'count count
+   ;'first first
+   ;'rest rest
+   ;'range range
+   ;'empty? empty?
    '= =
    'println println
    'list list
@@ -375,6 +437,9 @@ foldl (fn [f val coll]
                 (if (= (count coll) 1)
                   (f val (first coll))
                   (foldl f (f val (first coll)) (rest coll) )))
+defrec (macro [namefn lambda]
+  (list (l-quote def) namefn (list (l-quote Y) (list (l-quote fn) [namefn] lambda))))
+debug  (macro [body] (list (l-quote do) (list println \"hellow\") body))
 x 1
 y 2
 }")))
@@ -411,3 +476,22 @@ y 2
   (repl-loop env))
 
 
+
+
+
+(def  env
+  (extend-environment (primitive-procedure-names)
+                      (primitive-procedure-objects)
+                      (read-string "{
+Y (fn [m]
+      ((fn [x]
+         (x x))
+        (fn [x]
+          (m (fn [arg]
+               ((x x) arg))))))
+defrec (macro [namefn lambda]
+  ((list (l-quote def) namefn (list (l-quote Y) (list (l-quote fn) [namefn] lambda)))))
+
+debug  (macro [body] ((list (l-quote do) (list (l-quote println) \"hellow\") body)))
+
+}")))
