@@ -514,14 +514,21 @@
   debug  (macro [body] ((list (l-quote do) (list (l-quote println) \"hellow\") body)))
 }")))))
 
+(defn read-form [prefix]
+  (let [new-line (str prefix (read-line))]
+    (try
+      (read-string new-line)
+      (catch RuntimeException e
+        (if (= (.getMessage e) "EOF while reading")
+          (read-form new-line)
+          (throw e))))))
 
-
-  (defn repl-loop [env]
+(defn repl-loop [env]
     (print "REPL> ")
     (flush)
-    (let [line (read-line)
-          output (try
-                   (l-eval (read-string line) env)
+    (let [output (try
+                   (let [form (read-form "")]
+                     (l-eval form env))
                    (catch Exception e (str (.printStackTrace e) (.getMessage e)))
                    (catch StackOverflowError e (str (.printStackTrace e) (.getMessage e))))]
       (println output)
