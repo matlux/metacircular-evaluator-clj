@@ -1,5 +1,6 @@
 (ns clj-eval.core
-  (:require [clojure.core.match :refer [match]]))
+  (:require [clojure.core.match :refer [match]]
+            [clojure.set :refer [union]]))
 
 (defn atom? [x]
   (or (not (seq? x))
@@ -46,7 +47,19 @@
 (defmacro defrec [namefn lambda]
   `(def ~namefn (Y (fn [~namefn] ~lambda))))
 
-
+(declare let->lambda)
+(defn unbound-symbols [form]
+  (match form
+         (['fn params body] :seq) (apply disj (unbound-symbols body) params)
+         (['def name body] :seq) (unbound-symbols body)
+         (['if pred then else] :seq) (union (unbound-symbols pred) (unbound-symbols then) (unbound-symbols else))
+         (['let bindings body] :seq) (unbound-symbols (let->lambda ['let bindings body]))
+         (['let1 [sym binding] body] :seq) (union (unbound-symbols binding) (disj (unbound-symbols body) sym))
+         (['quote _] :seq) #{}
+         ([f & exprs] :seq) (apply union (unbound-symbols f) (map unbound-symbols exprs))
+         (coll :guard coll?) (apply union (map unbound-symbols coll))
+         (sym :guard symbol?) #{sym}
+         _ #{}))
 
 
 (declare self-evaluating? variable? lookup-var quoted? text-of-quotation assignment? eval-assignment definition? eval-definition
@@ -55,7 +68,7 @@
          primitive-procedure? apply-primitive-procedure no-operands? first-operand rest-operands
          compound-procedure? eval-sequence procedure-parameters procedure-environment procedure-body
          extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?
-         let? let->lambda macro? l-macroexpand macro-expansion?)
+         let? macro? l-macroexpand macro-expansion?)
 
 (comment
 
@@ -362,7 +375,8 @@
       (primitive-implementation proc) args))
 
   (defn make-procedure [parameters body env]
-    (list 'procedure parameters body env))
+    (let [usyms (unbound-symbols (list 'fn parameters body))]
+      (list 'procedure parameters body (select-keys env usyms))))
 
   (defn compound-procedure? [p]
     (tagged-list? p 'procedure))
@@ -571,33 +585,187 @@
 
 
 (comment
-Y  (fn [m]
-    ((fn [x]
-       (x x))
-      (fn [x]
-        (m (fn [arg]
-             ((x x) arg))))))
+  Y (fn [m]
+      ((fn [x]
+         (x x))
+        (fn [x]
+          (m (fn [arg]
+               ((x x) arg))))))
 
 
 
-(defrec curried-filter (fn [f]
-                        (fn [coll]
-                          (if (empty? coll)
-                            ()
-                            (if (f (first coll))
-                              (cons (first coll) (filter f (rest coll)))
-                              ((curried-filter f) (rest coll)))))))
-(def filter (fn [f coll]
-           ((curried-filter f) coll)))
-(defrec curried-foldl (fn [f]
-                        (fn [val]
-                          (fn [coll]
-                            (if (= (count coll) 1)
-                              (f val (first coll))
-                              (((curried-foldl f) (f val (first coll))) (rest coll)))))))
+  (defrec curried-filter (fn [f]
+                           (fn [coll]
+                             (if (empty? coll)
+                               ()
+                               (if (f (first coll))
+                                 (cons (first coll) (filter f (rest coll)))
+                                 ((curried-filter f) (rest coll)))))))
+  (def filter (fn [f coll]
+                ((curried-filter f) coll)))
+  (defrec curried-foldl (fn [f]
+                          (fn [val]
+                            (fn [coll]
+                              (if (= (count coll) 1)
+                                (f val (first coll))
+                                (((curried-foldl f) (f val (first coll))) (rest coll)))))))
 
-(def foldl (fn [f val coll]
-             (((curried-foldl f) val) coll)))
+  (def foldl (fn [f val coll]
+               (((curried-foldl f) val) coll)))
+
+
+  (defn analyze [exp]
+    (cond ((self-evaluating? exp)
+            (analyze-self-evaluating exp))
+          ((quoted? exp) (analyze-quoted exp))
+          ((variable? exp) (analyze-variable exp))
+          ((assignment? exp) (analyze-assignment exp))
+          ((definition? exp) (analyze-definition exp))
+          ((if? exp) (analyze-if exp))
+          ((lambda? exp) (analyze-lambda exp))
+          ((begin? exp) (analyze-sequence (begin-actions exp)))
+          ((cond? exp) (analyze (cond->if exp)))
+          ((application? exp) (analyze-application exp))
+          (else
+            (error "Unknown expression type -- ANALYZE" exp))))
+
+  (defn analyze-self-evaluating [exp]
+    (fn [env] exp))
+
+  (defn analyze-quoted [exp]
+    (let [qval (text-of-quotation exp)]
+      ￼￼ (fn (env) qval)))
+
+  (defn analyze-variable [exp]
+    (fn [env] (lookup-variable-value exp env)))
+
+  (defn sequentially [proc1 proc2]
+    (fn [env] (proc1 env) (proc2 env)))
+
+  (defn loop [first-proc rest-procs]
+    (if (null? rest-procs)
+      first-proc
+      (loop (sequentially first-proc (car rest-procs))
+        (cdr rest-procs))))
+
+  (defn analyze-sequence [exps]
+    (let [procs (map analyze exps)]
+      (if (null? procs)
+        (error "Empty sequence -- ANALYZE"))
+      (loop (car procs) (cdr procs))))
+
+
+
+  ((let [x 3
+         y 4]
+     (fn [a b c d e]
+       (let [y (* a b x)
+             z (+ c d x)]
+         (* x y z)))) 1 2 3 4 5)
+
+
+  (((fn [a]
+      (fn [b] (+ a b))) 1) 2)
+
+  (def form '(let [x 3
+                   y 4]
+               (fn [a b c d e]
+                 (let [y (* a b x)
+                       z (+ c d x)]
+                   (* x y z h)))))
+
+  (def form '(let1 x 3
+                   (let1 y 4
+                         (fn [a b c d e]
+                           (let1 y (* a b x)
+                                 (let1 z (+ c d x)
+                                       (* x y z h)))))))
+  (def form '(let1 [x 3]
+                   (let1 [y 4]
+                         (fn [a b c d e]
+                           (let1 [y (* a b x)]
+                                 (let1 [z (+ c d x)]
+                                       (* x y z h)))))))
+
+
+  (def form '(let [x 3
+                   y 4]
+               (fn [a b c d e]
+                 (if (= a (let [b a] a))
+                   (let [y (* a b x)
+                         z (+ c d x)]
+                     (* x y z h))
+                   (let [y (* a b x)
+                         j (+ c d x)]
+                     (* x y z h))))))
+
+  (def form '(def form (let [x 3
+                    y 4]
+                (fn [a b c d e]
+                  (if (= a (let [b a] a))
+                    (let [y (* a b x)
+                          z (+ c d x)]
+                      (* x y z h))
+                    (let [y (* a b x)
+                          j (+ c d x)]
+                      (* x y z h)))))))
+
+
+  (def form '(def map (Y (fn [map]
+                           (fn [f]
+                             (fn [coll]
+                               (if (empty? coll)
+                                 ()
+                                 (cons (f (first coll)) (map f (rest coll))))))))))
+  (def form '(Y (fn [map]
+                  (fn [f]
+                    (fn [coll]
+                      (if (empty? coll)
+                        ()
+                        (cons (f (first coll)) (map f (rest coll)))))))))
+
+  (select-keys '{* 1 let1 2 + 3 t 4 y 5} #{'* 'let1 '+})
+
+  (unbound-symbols form) => should return #{* let1 +}
+
+  (let->lambda '(let [y (* a b x) z (+ c d x)] (* x y z)))
+  (unbound-symbols (let->lambda form))
+
+(unbound-symbols (take-nth 2 (rest '[x 3
+                     y 4])))    => #{}
+(unbound-symbols (take-nth 2 '[x 3
+               y 4]))   =>   #{x y} are bounded
+
+(defn unbound-symbols [form]
+  (match form
+         (['fn params body] :seq) (apply disj (unbound-symbols body) params)
+         (['def name body] :seq) (unbound-symbols body)
+         (['if pred then else] :seq) (union (unbound-symbols pred) (unbound-symbols then) (unbound-symbols else))
+         (['let bindings body] :seq) (unbound-symbols (let->lambda ['let bindings body]))
+         (['let1 [sym binding] body] :seq) (union (unbound-symbols binding) (disj (unbound-symbols body) sym))
+         (['quote _] :seq) #{}
+         ([f & exprs] :seq) (apply union (unbound-symbols f) (map unbound-symbols exprs))
+         (coll :guard coll?) (apply union (map unbound-symbols coll))
+         (sym :guard symbol?) #{sym}
+         _ #{}))
+
+  (defn unbound-symbols [form]
+    (match form
+           (['let bindings body] :seq) (let->lambda ['let bindings body])
+))
+
+;; special forms: apply* if* let1* fn* [] {} #{} () value
+(defn unbound-symbols [form]
+  (match form
+         (['lambda closures _ _] :seq) (into #{} closures)
+         (['fn params body] :seq) (apply disj (unbound-symbols body) params)
+         (['quote _] :seq) #{}
+         ([f & exprs] :seq) (apply union (unbound-symbols f) (map unbound-symbols exprs))
+         (coll :guard coll?) (apply union (map unbound-symbols coll))
+         (sym :guard symbol?) #{sym}
+         _ #{}))
+
+(unbound-symbols form)
 
   )
 
