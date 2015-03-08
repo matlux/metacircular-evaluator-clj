@@ -122,6 +122,7 @@ a
  (list res (foo 4))
 " env)) '(99 42)))))
 
+;; currently the evaluator is strict lexical binding
 (deftest test-lexical-binding
   (testing "loading a script"
     (is (= (first (load "
@@ -144,17 +145,16 @@ x
    (foo))
 " env)) 0))
 
-    ;; this is a bug, this should be equal
-    (is (not= (first (load "
+    (is (= (first (load "
 (def foo (fn [x] (list x w)))
 (def bar (fn [w] (foo 1991)))
 (def w 0)
 (list (bar 100) (foo 3))
-" env)) '((1991 0) (3 0))))
+" env)) "w is not a valid symbol"))
 
     ))
 
-;; currently the evaluator is dynamic binding
+;; this is commented because the binding is no longer dynamic
 (comment
 
   (deftest test-dynamic-binding
@@ -172,14 +172,15 @@ x
 (list (bar 100) (foo 3))
 " env)) '((1991 100) (3 0)))))))
 
+;; this bug has been fixed
 (deftest test-dynamic-binding-bug
   (testing "a bug"
       (is (= (first (load "
+(def w 0)
 (def foo (fn [x] (list x w)))
 (def bar (fn [w] (foo 1991)))
-(def w 0)
 (list (bar 100) (foo 3))
-" (assoc env 'w 2))) '((1991 2) (3 2)))) ))
+" (assoc env 'w 2))) '((1991 0) (3 0)))) ))
 
 (def  fib-definition-old '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
 (def fib-definition '(def fib2 (Y (fn [fib] (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))))

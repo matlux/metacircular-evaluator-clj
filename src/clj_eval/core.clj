@@ -37,8 +37,8 @@
   ((fn [x] ;; λx
      (x x)) ;; f(x x)
     (fn [x] ;; λx
-      (m (fn [arg]
-           ((x x) arg))))))
+      (m (fn [& arg]
+           (apply (x x) arg))))))
 
 (defmacro recdef-old [namefn lambda]
   (list 'def namefn (list 'Y (list 'fn [namefn] lambda))))
@@ -119,7 +119,26 @@
     (def exp '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
     (def exp '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
     (def exp '(def foo (Y (fn [foo] (fn [x] (if (= x 99) x (foo (+ x 1))))))))
-    (def exp '(macroexpand (l-quote (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))))
+  (def exp '(macroexpand (l-quote (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))))
+  (def exp '(macroexpand (l-quote (defrec map (fn [f coll]
+                                                (if (empty? coll)
+                                                  ()
+                                                  (cons (f (first coll)) (map f (rest coll)))))))))
+
+  (def map (Y (fn [map]
+                (fn [f coll]
+                  (if (empty? coll)
+                    ()
+                    (cons (f (first coll)) (map f (rest coll))))))))
+
+  (def map (Y (fn [map]
+                (fn [f]
+                  (fn [coll]
+                    (if (empty? coll)
+                      ()
+                      (cons (f (first coll)) (map f (rest coll)))))))))
+
+  (def exp '(map (fn [x] x) (list 1 2 3)))
     (l-eval '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))) env)
 
   ()
@@ -485,22 +504,32 @@
              (m (fn [arg]
                   ((x x) arg)))))))
 
-(defrec map (fn [f coll]
-           (if (empty? coll)
-             ()
-             (cons (f (first coll)) (map f (rest coll))))))
+(defrec curried-map (fn [f]
+                  (fn [coll]
+                    (if (empty? coll)
+                      ()
+                      (cons (f (first coll)) ((curried-map f) (rest coll)))))))
+(def map (fn [f coll]
+                    ((curried-map f) coll)))
 
-(defrec filter (fn [f coll]
-              (if (empty? coll)
-                ()
-                (if (f (first coll))
-                  (cons (first coll) (filter f (rest coll)))
-                  (filter f (rest coll))))))
+(defrec curried-filter (fn [f]
+                        (fn [coll]
+                          (if (empty? coll)
+                            ()
+                            (if (f (first coll))
+                              (cons (first coll) ((curried-filter f) (rest coll)))
+                              ((curried-filter f) (rest coll)))))))
+(def filter (fn [f coll]
+           ((curried-filter f) coll)))
+(defrec curried-foldl (fn [f]
+                        (fn [val]
+                          (fn [coll]
+                            (if (= (count coll) 1)
+                              (f val (first coll))
+                              (((curried-foldl f) (f val (first coll))) (rest coll)))))))
 
-(defrec foldl (fn [f val coll]
-             (if (= (count coll) 1)
-               (f val (first coll))
-               (foldl f (f val (first coll)) (rest coll)))))
+(def foldl (fn [f val coll]
+             (((curried-foldl f) val) coll)))
 
 (def x 1)
 (def y 2)
@@ -549,8 +578,28 @@ Y  (fn [m]
         (m (fn [arg]
              ((x x) arg))))))
 
-  )
 
+
+(defrec curried-filter (fn [f]
+                        (fn [coll]
+                          (if (empty? coll)
+                            ()
+                            (if (f (first coll))
+                              (cons (first coll) (filter f (rest coll)))
+                              ((curried-filter f) (rest coll)))))))
+(def filter (fn [f coll]
+           ((curried-filter f) coll)))
+(defrec curried-foldl (fn [f]
+                        (fn [val]
+                          (fn [coll]
+                            (if (= (count coll) 1)
+                              (f val (first coll))
+                              (((curried-foldl f) (f val (first coll))) (rest coll)))))))
+
+(def foldl (fn [f val coll]
+             (((curried-foldl f) val) coll)))
+
+  )
 
 
 
