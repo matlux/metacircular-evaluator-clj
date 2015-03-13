@@ -1,6 +1,8 @@
 (ns clj-eval.core
   (:require [clojure.core.match :refer [match]]
-            [clojure.set :refer [union]]))
+            [clojure.set :refer [union]]
+            [alex-and-georges.debug-repl :refer [debug-repl]]
+            [clojure.tools.trace :refer [trace deftrace]]))
 
 (defn atom? [x]
   (or (not (seq? x))
@@ -736,7 +738,7 @@
 (unbound-symbols (take-nth 2 '[x 3
                y 4]))   =>   #{x y} are bounded
 
-(defn unbound-symbols [form]
+(deftrace unbound-symbols [form]
   (match form
          (['fn params body] :seq) (apply disj (unbound-symbols body) params)
          (['def name body] :seq) (unbound-symbols body)
@@ -767,8 +769,15 @@
 
 (unbound-symbols form)
 
+
+  (let [c 1 d 2]
+    (defn a [b c]
+      ;(debug-repl)
+      d))
+
+  (a "foo" "bar")
+
+
+
+
   )
-
-
-
-
