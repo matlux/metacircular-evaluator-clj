@@ -72,135 +72,6 @@
          extend-environment if-predicate if-consequent if-alternative tagged-list? lambda?
          let? macro? l-macroexpand macro-expansion?)
 
-(comment
-
-  (def Y
-    (fn [m]
-      ((fn [x]
-         (x x))
-        (fn [x]
-          (m (fn [arg]
-               ((x x) arg)))))))
-
-
-  (defrec factorial
-          (fn [n]
-            (if (= n 0)
-              1
-              (* n (factorial (- n 1))))))
-
-  (def factorial
-    (fn [n]
-      (if (= n 0)
-        1
-        (* n (factorial (- n 1))))))
-
-  (def almost-factorial
-    (fn [f]
-      (fn [n]
-        (if (= n 0)
-          1
-          (* n (f (- n 1)))))))
-
-
-  (macroexpand '(defrec factorial
-                        (fn [n]
-                          (if (= n 0)
-                            1
-                            (* n (factorial (- n 1)))))))
-
-  (defmacro defrec [namefn lambda]
-    (list 'def namefn (list 'Y (list 'fn [namefn] lambda))))
-
-    (def exp '(def Y (fn [m]
-                       ((fn [x]
-                          (x x))
-                         (fn [x]
-                           (m (fn [arg]
-                                ((x x) arg))))))))
-  ;; ((fn [m] ((fn [x] (x x)) (fn [x] (m (fn [arg] ((x x) arg))))))
-
-    (factorial 5)
-    ((Y almost-factorial) 5)
-
-    (macroexpand '(recdef fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
-
-    (def fib-definition '(Y (fn [fib] (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2)))))))))
-    (macroexpand '(devrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
-
-    (let [[_ new-env] (l-eval fib-definition env)]
-      (l-eval '(fib 17) new-env))
-
-    (def exp '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
-    (def exp '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
-    (def exp '(def foo (Y (fn [foo] (fn [x] (if (= x 99) x (foo (+ x 1))))))))
-  (def exp '(macroexpand (l-quote (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))))))
-  (def exp '(macroexpand (l-quote (defrec map (fn [f coll]
-                                                (if (empty? coll)
-                                                  ()
-                                                  (cons (f (first coll)) (map f (rest coll)))))))))
-
-  (def map (Y (fn [map]
-                (fn [f coll]
-                  (if (empty? coll)
-                    ()
-                    (cons (f (first coll)) (map f (rest coll))))))))
-
-  (def map (Y (fn [map]
-                (fn [f]
-                  (fn [coll]
-                    (if (empty? coll)
-                      ()
-                      (cons (f (first coll)) (map f (rest coll)))))))))
-
-  (def exp '(map (fn [x] x) (list 1 2 3)))
-    (l-eval '(defrec foo (fn [x] (if (= x 99) x (foo (+ x 1))))) env)
-
-  ()
-    '(def foo
-       (Y (fn [foo]
-            (procedure [x] ((if (= x 99) x (foo (+ x 1))))))))
-
-    (def exp '((procedure [namefn lambda] (list (quote def) namefn (list (quote Y) (list (quote fn) [namefn] lambda))))))
-
-    (def exp '((procedure [namefn lambda] (list (l-quote def) namefn (list (l-quote Y) (list (l-quote fn) [namefn] lambda))) env)
-                (l-quote foo) (l-quote (fn [x] (if (= x 99) x (foo (+ x 1)))))))
-
-    (l-eval '((procedure [body] ((l-quote do) (println "hellow") body) {}) (+ 1 2)), env)
-
-    (list 'do (list (quote println) "hellow") (+ 1 2))
-
-    (def exp '(debug (+ 1 2)))
-    (def exp '(macroexpand (l-quote (debug (+ 1 2)))))
-
-    ;; target
-    (def exp (list (list 'procedure ['body] (list (list 'list (list 'l-quote 'do) (list 'list (list 'l-quote 'println) "hellow") 'body)) env) '(+ 1 2)))
-
-
-    (def exp (list (list 'procedure ['a] (list ('+ 1 'a)) env) 2))
-
-    (let [[[proc params body env] vals] (l-eval exp env)]
-      (list (list proc params body 'env) vals))
-  (l-eval exp env)
-  (def env (second (l-eval exp env)))
-  (l-eval '(foo 4) env)
-  {Y (procedure [m] (((fn [x] (x x)) (fn [x] (m (fn [arg] ((x x) arg)))))) {})}
-
-    (l-apply (operator (l-eval exp env))
-             (operands (l-eval exp env)) env)
-    (l-apply (operator exp)
-             (operands exp) env)
-    (def exp '(do (+ 1 2)))
-
-    (def exp '(def x 43))
-    (def exp '(fn [a] (+ 1 a)))
-    (l-eval ((fn [x] (+ 1 x) 2)) env)
-
-  (l-eval '(+ 1 2) env)
-    (def exp-old exp)
-
-    (def exp (first exps))
-    )
 
   (defn l-eval [exp env]
     (cond (self-evaluating? exp) exp
@@ -225,18 +96,7 @@
           :else
           (error "Unknown expression type -- EVAL" exp)))
 
-  (comment
 
-    (def args '(foo (fn [x] (if (= x 99) x (foo (+ x 1))))))
-    (def procedure (list 'procedure ['namefn 'lambda] '((list (l-quote def) namefn (list (l-quote Y) (list (l-quote fn) [namefn] lambda)))) env))
-    ((list (l-quote def) namefn (list (l-quote Y) (list (l-quote fn) [namefn] lambda))))
-
-    (def exps (procedure-body procedure))
-    (def env (extend-environment
-               (procedure-parameters procedure)
-               args
-               (procedure-environment procedure)))
-    )
 
   (defn l-apply [procedure args global-env]                 ;; needed to add the env for recursivity to work so symbol lookup could fall back onto global env. But that's not great because that means recursive function lookup is dynamic (rather than lexical) binding
     (cond (primitive-procedure? procedure) (apply-primitive-procedure procedure args)
@@ -251,13 +111,6 @@
 
   (defn text-of-quotation [txt]
     (second txt))
-
-  (comment
-    (def exps (operands exp))
-    (def exps (rest-operands exps))
-
-    (def exp (first-operand exps))
-    )
 
   (defn list-of-values [exps env]
     (if (no-operands? exps)
@@ -297,25 +150,11 @@
   (defn macro-expansion? [exp]
     (tagged-list? exp 'macroexpand))
 
-
-  (comment
-
-    (def procedure (let [[_ params body] (lookup-var (operator exp) env)
-                         proc-with-params (cons (make-procedure params body env) (operands exp))]
-                     (operator proc-with-params)))
-
-    (def args (let [[_ params body] (lookup-var (operator exp) env)
-                    proc-with-params (cons (make-procedure params body env) (operands exp))]
-                (operands proc-with-params)))
-
-    )
-
   (defn l-macroexpand [exp env]
     (let [[_ params body] (lookup-var (operator exp) env)
           proc-with-params (cons (make-procedure params body env) (operands exp))]
       (l-apply (operator proc-with-params)
                (operands proc-with-params) env)))
-
 
 
   (defn let? [exp] (or (tagged-list? exp 'let) (tagged-list? exp 'let1)))
@@ -344,9 +183,7 @@
 
     )
 
-  (comment
 
-    )
 
   (defn primitive-implementation [proc] (second proc))
   (def primitive-procedures
@@ -408,12 +245,6 @@
 
   (defn tagged-list? [exp tag]
     (= (and (seq? exp) (first exp)) tag))
-
-  (comment (tagged-list? 'y 'fn)
-           (lookup-var exp env)
-           (def var exp)
-           (def item 2)
-           (def exp 2))
 
   (defn assignment? [exp]
     (tagged-list? exp 'set!))
@@ -584,200 +415,3 @@
 
   (defn -main []
     (repl-loop env))
-
-
-(comment
-  Y (fn [m]
-      ((fn [x]
-         (x x))
-        (fn [x]
-          (m (fn [arg]
-               ((x x) arg))))))
-
-
-
-  (defrec curried-filter (fn [f]
-                           (fn [coll]
-                             (if (empty? coll)
-                               ()
-                               (if (f (first coll))
-                                 (cons (first coll) (filter f (rest coll)))
-                                 ((curried-filter f) (rest coll)))))))
-  (def filter (fn [f coll]
-                ((curried-filter f) coll)))
-  (defrec curried-foldl (fn [f]
-                          (fn [val]
-                            (fn [coll]
-                              (if (= (count coll) 1)
-                                (f val (first coll))
-                                (((curried-foldl f) (f val (first coll))) (rest coll)))))))
-
-  (def foldl (fn [f val coll]
-               (((curried-foldl f) val) coll)))
-
-
-  (defn analyze [exp]
-    (cond ((self-evaluating? exp)
-            (analyze-self-evaluating exp))
-          ((quoted? exp) (analyze-quoted exp))
-          ((variable? exp) (analyze-variable exp))
-          ((assignment? exp) (analyze-assignment exp))
-          ((definition? exp) (analyze-definition exp))
-          ((if? exp) (analyze-if exp))
-          ((lambda? exp) (analyze-lambda exp))
-          ((begin? exp) (analyze-sequence (begin-actions exp)))
-          ((cond? exp) (analyze (cond->if exp)))
-          ((application? exp) (analyze-application exp))
-          (else
-            (error "Unknown expression type -- ANALYZE" exp))))
-
-  (defn analyze-self-evaluating [exp]
-    (fn [env] exp))
-
-  (defn analyze-quoted [exp]
-    (let [qval (text-of-quotation exp)]
-      ￼￼ (fn (env) qval)))
-
-  (defn analyze-variable [exp]
-    (fn [env] (lookup-variable-value exp env)))
-
-  (defn sequentially [proc1 proc2]
-    (fn [env] (proc1 env) (proc2 env)))
-
-  (defn loop [first-proc rest-procs]
-    (if (null? rest-procs)
-      first-proc
-      (loop (sequentially first-proc (car rest-procs))
-        (cdr rest-procs))))
-
-  (defn analyze-sequence [exps]
-    (let [procs (map analyze exps)]
-      (if (null? procs)
-        (error "Empty sequence -- ANALYZE"))
-      (loop (car procs) (cdr procs))))
-
-
-
-  ((let [x 3
-         y 4]
-     (fn [a b c d e]
-       (let [y (* a b x)
-             z (+ c d x)]
-         (* x y z)))) 1 2 3 4 5)
-
-
-  (((fn [a]
-      (fn [b] (+ a b))) 1) 2)
-
-  (def form '(let [x 3
-                   y 4]
-               (fn [a b c d e]
-                 (let [y (* a b x)
-                       z (+ c d x)]
-                   (* x y z h)))))
-
-  (def form '(let1 x 3
-                   (let1 y 4
-                         (fn [a b c d e]
-                           (let1 y (* a b x)
-                                 (let1 z (+ c d x)
-                                       (* x y z h)))))))
-  (def form '(let1 [x 3]
-                   (let1 [y 4]
-                         (fn [a b c d e]
-                           (let1 [y (* a b x)]
-                                 (let1 [z (+ c d x)]
-                                       (* x y z h)))))))
-
-
-  (def form '(let [x 3
-                   y 4]
-               (fn [a b c d e]
-                 (if (= a (let [b a] a))
-                   (let [y (* a b x)
-                         z (+ c d x)]
-                     (* x y z h))
-                   (let [y (* a b x)
-                         j (+ c d x)]
-                     (* x y z h))))))
-
-  (def form '(def form (let [x 3
-                    y 4]
-                (fn [a b c d e]
-                  (if (= a (let [b a] a))
-                    (let [y (* a b x)
-                          z (+ c d x)]
-                      (* x y z h))
-                    (let [y (* a b x)
-                          j (+ c d x)]
-                      (* x y z h)))))))
-
-
-  (def form '(def map (Y (fn [map]
-                           (fn [f]
-                             (fn [coll]
-                               (if (empty? coll)
-                                 ()
-                                 (cons (f (first coll)) (map f (rest coll))))))))))
-  (def form '(Y (fn [map]
-                  (fn [f]
-                    (fn [coll]
-                      (if (empty? coll)
-                        ()
-                        (cons (f (first coll)) (map f (rest coll)))))))))
-
-  (select-keys '{* 1 let1 2 + 3 t 4 y 5} #{'* 'let1 '+})
-
-  (unbound-symbols form) => should return #{* let1 +}
-
-  (let->lambda '(let [y (* a b x) z (+ c d x)] (* x y z)))
-  (unbound-symbols (let->lambda form))
-
-(unbound-symbols (take-nth 2 (rest '[x 3
-                     y 4])))    => #{}
-(unbound-symbols (take-nth 2 '[x 3
-               y 4]))   =>   #{x y} are bounded
-
-(deftrace unbound-symbols [form]
-  (match form
-         (['fn params body] :seq) (apply disj (unbound-symbols body) params)
-         (['def name body] :seq) (unbound-symbols body)
-         (['if pred then else] :seq) (union (unbound-symbols pred) (unbound-symbols then) (unbound-symbols else))
-         (['let bindings body] :seq) (unbound-symbols (let->lambda ['let bindings body]))
-         (['let1 [sym binding] body] :seq) (union (unbound-symbols binding) (disj (unbound-symbols body) sym))
-         (['quote _] :seq) #{}
-         ([f & exprs] :seq) (apply union (unbound-symbols f) (map unbound-symbols exprs))
-         (coll :guard coll?) (apply union (map unbound-symbols coll))
-         (sym :guard symbol?) #{sym}
-         _ #{}))
-
-  (defn unbound-symbols [form]
-    (match form
-           (['let bindings body] :seq) (let->lambda ['let bindings body])
-))
-
-;; special forms: apply* if* let1* fn* [] {} #{} () value
-(defn unbound-symbols [form]
-  (match form
-         (['lambda closures _ _] :seq) (into #{} closures)
-         (['fn params body] :seq) (apply disj (unbound-symbols body) params)
-         (['quote _] :seq) #{}
-         ([f & exprs] :seq) (apply union (unbound-symbols f) (map unbound-symbols exprs))
-         (coll :guard coll?) (apply union (map unbound-symbols coll))
-         (sym :guard symbol?) #{sym}
-         _ #{}))
-
-(unbound-symbols form)
-
-
-  (let [c 1 d 2]
-    (defn a [b c]
-      ;(debug-repl)
-      d))
-
-  (a "foo" "bar")
-
-
-
-
-  )
