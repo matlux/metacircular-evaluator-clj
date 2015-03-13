@@ -116,12 +116,13 @@ a
 (deftest test-recursive-fction
   (testing "reloading recurcive fction and making sure they work"
     (is (= (first (load "
-(def foo (fn [x] (if (= x 99) x (foo (+ x 1)))))
+ (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1)))))
  (def res (foo 4))
- (def foo (fn [x] (if (= x 42) x (foo (+ x 1)))))
+ (defrec foo (fn [x] (if (= x 42) x (foo (+ x 1)))))
  (list res (foo 4))
 " env)) '(99 42)))))
 
+;; currently the evaluator is strict lexical binding
 (deftest test-lexical-binding
   (testing "loading a script"
     (is (= (first (load "
@@ -144,55 +145,58 @@ x
    (foo))
 " env)) 0))
 
-    ;; this is a bug, this should be equal
-    (is (not= (first (load "
+    (is (= (first (load "
 (def foo (fn [x] (list x w)))
 (def bar (fn [w] (foo 1991)))
 (def w 0)
 (list (bar 100) (foo 3))
-" env)) '((1991 0) (3 0))))
+" env)) "w is not a valid symbol"))
 
     ))
 
-;; currently the evaluator is dynamic binding
-(deftest test-dynamic-binding
-  (testing "loading a script"
-      (is (= (first (load "
+;; this is commented because the binding is no longer dynamic
+(comment
+
+  (deftest test-dynamic-binding
+   (testing "loading a script"
+     (is (= (first (load "
 
 (def foo (fn [] w))
 (let [w 42]
    (foo))
 " env)) 42))
-      (is (= (first (load "
+     (is (= (first (load "
 (def foo (fn [x] (list x w)))
 (def bar (fn [w] (foo 1991)))
 (def w 0)
 (list (bar 100) (foo 3))
-" env)) '((1991 100) (3 0))))))
+" env)) '((1991 100) (3 0)))))))
 
+;; this bug has been fixed
 (deftest test-dynamic-binding-bug
   (testing "a bug"
       (is (= (first (load "
+(def w 0)
 (def foo (fn [x] (list x w)))
 (def bar (fn [w] (foo 1991)))
-(def w 0)
 (list (bar 100) (foo 3))
-" (assoc env 'w 2))) '((1991 2) (3 2)))) ))
+" (assoc env 'w 2))) '((1991 0) (3 0)))) ))
 
-(def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+(def  fib-definition-old '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
+(def fib-definition '(def fib2 (Y (fn [fib] (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))))
 
 (deftest definition-recurcivity-test
   (testing "Eval to tail recursive functions should not blow the stack"
     (is (= (let [[_ new-env] (l-eval fib-definition env)]
-             (l-eval '(fib 17) new-env)) 1597))))
+             (l-eval '(fib2 17) new-env)) 1597))))
 
 (deftest StackOverflowError-test
   (testing "Eval to tail recursive functions should not blow the stack"
     (is (= (let [[_ new-env] (l-eval fib-definition env)]
-             (first (l-eval '(map fib (map (fn [_] 5) (range 500))) new-env))) 5))
+             (first (l-eval '(map fib2 (map (fn [_] 5) (range 500))) new-env))) 5))
 
     (is (= (try (let [[_ new-env] (l-eval fib-definition env)]
-                  (l-eval '(map fib (map (fn [_] 5) (range 3000))) new-env))
+                  (l-eval '(map fib2 (map (fn [_] 5) (range 3000))) new-env))
                 (catch StackOverflowError e (.toString e))) "java.lang.StackOverflowError"))
     ))
 
