@@ -27,6 +27,18 @@
 
     ))
 
+(deftest let-test
+  (testing "Evaluation of let blocks should work"
+    (is (= (l-eval-root '(let [] 3) env) 3))
+    (is (= (l-eval-root '(let [a 3] a) env) 3))
+    (is (= (l-eval-root '(let [a 3 b 4] (+ a b)) env) 7))
+    (is (= (l-eval-root '(let [a (+ 1 2) b (+ a 1)] (+ a b)) env) 7))
+    (is (= (l-eval-root '(let [a (+ 1 2) b (+ a 1) c (+ a b)] (+ a b c)) env) 14))
+    (is (= (l-eval-root '(let [f (fn [a b c] (+ a b c)) a (+ 1 2) b (+ a 1) c (+ a b)] (f a b c)) env) 14))
+    (is (= (l-eval-root '(let [f (fn [x y z] (+ x y z)) a (+ 1 2) b (+ a 1) c (+ a b)] (f a b c)) env) 14))
+
+    ))
+
 (deftest definitions
   (testing "Evaluation of variables should work"
     (is (= (l-eval-root '(def a 42) env) (list 'updated-env (merge env {'a 42}))))
@@ -102,6 +114,16 @@
 a
 " env)) 42))))
 
+(deftest test-recursive-fction
+  (testing "reloading recurcive fction and making sure they work"
+    (is (= (first (load "
+ (defrec foo (fn [x] (if (= x 99) x (foo (+ x 1)))))
+ (def res (foo 4))
+ (defrec foo (fn [x] (if (= x 42) x (foo (+ x 1)))))
+ (list res (foo 4))
+" env)) '(99 42)))))
+
+;; currently the evaluator is strict lexical binding
 (deftest test-lexical-binding
   (testing "loading a script"
     (is (= (first (load "
@@ -109,14 +131,58 @@ a
 (def f (fn [] x))
 (f)
 ((fn [x] (f)) 7)
-" env)) 42))
+" {})) 42))
     (is (= (first (load "
 (def x 42)
 (def f (fn [] x))
 (f)
 ((fn [x] (f)) 7)
 x
-" env)) 42))))
+" {})) 42))
+     (is (= (first (load "
+(def w 0)
+(def foo (fn [] w))
+(let [w 42]
+   (foo))
+" env)) 0))
+
+    (is (= (first (load "
+(def foo (fn [x] (list x w)))
+(def bar (fn [w] (foo 1991)))
+(def w 0)
+(list (bar 100) (foo 3))
+" env)) '((1991 100) (3 0))))  ;; "w is not a valid symbol"
+
+    ))
+
+;; this is commented because the binding is no longer dynamic
+(comment
+
+  (deftest test-dynamic-binding
+   (testing "loading a script"
+     (is (= (first (load "
+
+(def foo (fn [] w))
+(let [w 42]
+   (foo))
+" env)) 42))
+     (is (= (first (load "
+(def foo (fn [x] (list x w)))
+(def bar (fn [w] (foo 1991)))
+(def w 0)
+(list (bar 100) (foo 3))
+" env)) '((1991 100) (3 0)))))))
+
+;; this bug has been fixed
+(deftest test-dynamic-binding-bug
+  (testing "a bug"
+      (is (= (first (load "
+(def w 0)
+(def foo (fn [x] (list x w)))
+(def bar (fn [w] (foo 1991)))
+(list (bar 100) (foo 3))
+" (assoc env 'w 2))) '((1991 0) (3 0)))) ))
+
 
 (def  fib-definition '(def fib (fn [n] (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2))))))))
 (def tail-rec '(def tail-rec (fn [x n] (do (if (= x n) x (tail-rec (+ x 1) n))))))
@@ -144,15 +210,23 @@ x
     (is (= (let [[_ new-env] (l-eval-root fib-definition env)]
              (l-eval-root '(map fib (map (fn [_] 5) (range 3000))) new-env))
            ))
-    (is (= (do (println "map=") (time (let [[_ new-env] (l-eval-root fib-definition env)]
+
+    ;; 42659 ms
+    (is (= (do (println "map(30000 iterations)=") (time (let [[_ new-env] (l-eval-root fib-definition env)]
                     (l-eval-root '(map fib (map (fn [_] 5) (range 30000))) new-env))))
            ))
-    (is (= (do (println "map=") (time (let [[_ new-env] (l-eval-root fib-definition env)]
+
+    ;; 34982 ms
+    (is (= (do (println "map-cps(30000 iterations)=") (time (let [[_ new-env] (l-eval-root fib-definition env)]
                                         (l-eval-root '(map-cps fib (map (fn [_] 5) (range 30000)) identity) new-env))))
            ))
-    (is (= (do (println "tail-rec=") (time (first (load "
+
+    ;; 36766 ms
+    (is (= (do (println "tail-rec(1000000 iter)=") (time (first (load "
 (def tail-rec (fn [x n] (do (if (= x n) x (tail-rec (+ x 1) n)))))
 (tail-rec 0 1000000)" env)))) 1000000))
+
+    ;; 39226 ms
     (is (= (do (println "cps-rec=") (time (first (load "
 (def cps-rec (fn [x n k]
   (do (if (= x n)
